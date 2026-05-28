@@ -1,0 +1,48 @@
+package com.musornibak.pocketclaw.ui.settings
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.musornibak.pocketclaw.agent.ChatMsg
+import com.musornibak.pocketclaw.agent.LlmClient
+import com.musornibak.pocketclaw.data.ApiSettings
+import com.musornibak.pocketclaw.data.Provider
+import com.musornibak.pocketclaw.data.SettingsRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val repo: SettingsRepository,
+    private val llm: LlmClient
+) : ViewModel() {
+
+    val settings: StateFlow<ApiSettings?> = repo.flow
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private val _testResult = MutableStateFlow<Pair<Boolean, String>?>(null)
+    val testResult: StateFlow<Pair<Boolean, String>?> = _testResult.asStateFlow()
+
+    fun setProvider(p: Provider) = viewModelScope.launch { repo.setProvider(p) }
+    fun setBaseUrl(v: String) = viewModelScope.launch { repo.setBaseUrl(v) }
+    fun setApiKey(v: String) = viewModelScope.launch { repo.setApiKey(v) }
+    fun setModel(v: String) = viewModelScope.launch { repo.setModel(v) }
+    fun setSystemPrompt(v: String) = viewModelScope.launch { repo.setSystemPrompt(v) }
+
+    fun runTest() = viewModelScope.launch {
+        _testResult.value = null
+        val s = repo.flow.first()
+        runCatching {
+            llm.complete(s, listOf(ChatMsg("user", "ответь одним словом: ping")))
+        }.fold(
+            onSuccess = { _testResult.value = true to it.take(80) },
+            onFailure = { _testResult.value = false to (it.message ?: "error") }
+        )
+    }
+}

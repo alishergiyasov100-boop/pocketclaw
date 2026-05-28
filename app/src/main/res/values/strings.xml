@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PocketClaw</string>
+    <string name="a11y_service_label">PocketClaw — лапы агента</string>
+    <string name="a11y_service_description">Разрешает PocketClaw читать экран и выполнять подтверждённые юзером тапы/ввод. Каждое действие — отдельный диалог-подтверждение. Без подтверждения ничего не нажимается.</string>
+
+    <string name="nav_chat">Чат</string>
+    <string name="nav_settings">API</string>
+    <string name="nav_a11y">Доступ</string>
+
+    <string name="chat_title">Лапа</string>
+    <string name="chat_input_hint">Дай задачу…</string>
+    <string name="chat_send">Отправить</string>
+    <string name="chat_stop">Стоп</string>
+    <string name="chat_empty">Скажи мне что сделать на телефоне. Каждый тап я спрошу.</string>
+
+    <string name="settings_title">API</string>
+    <string name="settings_provider">Провайдер</string>
+    <string name="settings_base_url">Base URL</string>
+    <string name="settings_api_key">API key</string>
+    <string name="settings_model">Модель</string>
+    <string name="settings_system_prompt">System prompt</string>
+    <string name="settings_save">Сохранить</string>
+    <string name="settings_test">Проверить</string>
+
+    <string name="a11y_title">Сервис доступа</string>
+    <string name="a11y_explainer">PocketClaw управляет телефоном через системный AccessibilityService. Без него агент видит экран как чёрный ящик и не может ни тапнуть, ни напечатать.</string>
+    <string name="a11y_enabled">Сервис включён</string>
+    <string name="a11y_disabled">Сервис выключен</string>
+    <string name="a11y_open_settings">Открыть настройки доступа</string>
+
+    <string name="confirm_title">Разрешить действие?</string>
+    <string name="confirm_allow">Разрешить</string>
+    <string name="confirm_deny">Отказать</string>
+    <string name="confirm_explain">PocketClaw попросил выполнить tool. Ничего не произойдёт пока не нажмёшь «Разрешить». Это и есть твоя защита от галлюцинаций модели.</string>
+</resources>
