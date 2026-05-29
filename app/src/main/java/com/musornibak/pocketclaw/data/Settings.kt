@@ -11,15 +11,15 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 enum class Provider(val label: String, val defaultBaseUrl: String, val defaultModel: String) {
+    Groq("Groq (free, рекомендуется)", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"),
     OpenAI("OpenAI", "https://api.openai.com/v1", "gpt-4o-mini"),
-    OpenRouter("OpenRouter", "https://openrouter.ai/api/v1", "anthropic/claude-3.5-sonnet"),
-    Groq("Groq", "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"),
-    PocketQwal("PocketQwal (local)", "http://127.0.0.1:8080/v1", "local"),
+    OpenRouter("OpenRouter", "https://openrouter.ai/api/v1", "meta-llama/llama-3.3-70b-instruct:free"),
+    PocketQwal("PocketQwal Relay (HF)", "https://KorvusTheExplorer-pocketqwal-relay.hf.space/v1", "pocketqwal"),
     Custom("Custom", "https://", "");
 
     companion object {
         fun fromName(name: String?): Provider =
-            entries.firstOrNull { it.name == name } ?: OpenRouter
+            entries.firstOrNull { it.name == name } ?: Groq
     }
 }
 

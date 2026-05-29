@@ -29,13 +29,18 @@ class ReActAgent @Inject constructor(
             ChatMsg("system", sys),
             ChatMsg("user", userTask)
         )
+        _events.emit(AgentEvent.Thought(
+            "→ ${settings.provider.label} | ${settings.model} | ${settings.baseUrl}"
+        ))
 
         var step = 0
         while (step < maxSteps) {
             step++
             val reply = runCatching { llm.complete(settings, history) }
-                .getOrElse {
-                    _events.emit(AgentEvent.Error("LLM error: ${it.message}"))
+                .getOrElse { e ->
+                    val cls = e.javaClass.simpleName
+                    val msg = e.message ?: "(нет сообщения)"
+                    _events.emit(AgentEvent.Error("[$cls] $msg"))
                     return
                 }
             history += ChatMsg("assistant", reply)

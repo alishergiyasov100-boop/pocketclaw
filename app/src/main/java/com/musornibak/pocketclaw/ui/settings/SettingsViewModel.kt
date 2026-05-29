@@ -35,9 +35,9 @@ class SettingsViewModel @Inject constructor(
     fun setModel(v: String) = viewModelScope.launch { repo.setModel(v) }
     fun setSystemPrompt(v: String) = viewModelScope.launch { repo.setSystemPrompt(v) }
 
-    fun runTest() = viewModelScope.launch {
+    fun runTest(override: ApiSettings? = null) = viewModelScope.launch {
         _testResult.value = null
-        val s = repo.flow.first()
+        val s = override ?: repo.flow.first()
         runCatching {
             llm.complete(s, listOf(ChatMsg("user", "ответь одним словом: ping")))
         }.fold(

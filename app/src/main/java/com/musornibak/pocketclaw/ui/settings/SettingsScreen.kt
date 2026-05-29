@@ -54,6 +54,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.musornibak.pocketclaw.R
+import com.musornibak.pocketclaw.data.ApiSettings
 import com.musornibak.pocketclaw.data.Provider
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
@@ -181,7 +182,17 @@ fun SettingsScreen(
                     )
 
                     OutlinedButton(
-                        onClick = { vm.runTest() },
+                        onClick = {
+                            vm.runTest(
+                                ApiSettings(
+                                    provider = s.provider,
+                                    baseUrl = baseUrl.trim(),
+                                    apiKey = apiKey.trim(),
+                                    model = model.trim(),
+                                    systemPrompt = systemPrompt
+                                )
+                            )
+                        },
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
