@@ -76,9 +76,13 @@ class ReActAgent @Inject constructor(
     }
 
     private fun systemPrompt(custom: String, level: ConfirmLevel): String {
-        val tools = """
-            Доступные tools (вызывай по одному, JSON-объектом в конце сообщения):
-            ${this.tools.schemaJson}
+        val whitelist = tools.validToolNames.joinToString(", ")
+        val toolsBlock = """
+            === БЕЛЫЙ СПИСОК TOOLS (других НЕТ, вызов любого другого ОТКЛОНЯЕТСЯ) ===
+            $whitelist
+
+            Полные сигнатуры:
+            ${tools.schemaJson}
         """.trimIndent()
         val confirmRule = when (level) {
             ConfirmLevel.None -> "- Подтверждения отключены: действуй уверенно, но осторожно"
@@ -86,10 +90,12 @@ class ReActAgent @Inject constructor(
             ConfirmLevel.EveryAction -> "- Юзер видит и одобряет каждое действие, кроме read_screen/done/wait. Не пытайся обходить confirm — если отказали, выбери другой путь"
         }
         val rules = """
-            Правила:
+            Правила (СТРОГО):
+            - НИКОГДА не выдумывай tool вне белого списка. Нет тулзы — используй комбинацию имеющихся или скажи done с честным summary что не можешь
             - Думай коротко на русском перед каждым tool-вызовом
-            - Один tool-call за ответ. Формат:
-              {"tool":"имя","args":{"ключ":"значение"}}
+            - Один tool-call за ответ. Формат строго:
+              {"tool":"<имя_из_белого_списка>","args":{"ключ":"значение"}}
+            - Никаких других имён. Никаких суффиксов/префиксов. Имя — буква в букву как в списке
             - После каждого действия читай Observation и решай следующий шаг
             - Если задача выполнена — вызови {"tool":"done","args":{"summary":"…"}}
             - Если не уверен какой элемент тапнуть — сначала read_screen
@@ -99,7 +105,7 @@ class ReActAgent @Inject constructor(
             if (custom.isNotBlank()) appendLine(custom).appendLine()
             appendLine("Ты — PocketClaw, агент управляющий Android-телефоном юзера.")
             appendLine()
-            appendLine(tools)
+            appendLine(toolsBlock)
             appendLine()
             appendLine(rules)
         }

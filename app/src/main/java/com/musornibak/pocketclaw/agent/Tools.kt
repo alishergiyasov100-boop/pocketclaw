@@ -38,6 +38,14 @@ class Tools @Inject constructor(
 
     private val bigTools = setOf("open_url", "launch_app", "type", "shell", "write_file", "http_fetch")
 
+    val validToolNames: Set<String> = setOf(
+        "open_url", "launch_app", "tap_text", "tap_xy", "long_press", "type",
+        "scroll", "swipe", "press_back", "press_home", "press_recents",
+        "open_notifications", "current_app", "wait_for_text", "read_screen",
+        "shell", "http_fetch", "read_file", "write_file", "list_files",
+        "clipboard_read", "clipboard_write", "wait", "done"
+    )
+
     private val http by lazy {
         OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
@@ -78,6 +86,12 @@ class Tools @Inject constructor(
     """.trimIndent()
 
     suspend fun execute(toolName: String, args: Map<String, String>): ToolResult {
+        if (toolName !in validToolNames) {
+            return ToolResult(
+                false,
+                "Tool «$toolName» НЕ существует. Используй ТОЛЬКО: ${validToolNames.joinToString(", ")}. Повтори вызов с правильным именем."
+            )
+        }
         when (toolName) {
             "read_screen" -> {
                 val svc = ClawA11yService.get() ?: return ToolResult(false, "AccessibilityService не запущен")
