@@ -1,5 +1,7 @@
 package com.musornibak.pocketclaw.agent
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -7,13 +9,21 @@ import com.musornibak.pocketclaw.data.ConfirmLevel
 import com.musornibak.pocketclaw.data.SettingsRepository
 import com.musornibak.pocketclaw.service.ClawA11yService
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,7 +36,17 @@ class Tools @Inject constructor(
     private val settings: SettingsRepository
 ) {
 
-    private val bigTools = setOf("open_url", "launch_app", "type")
+    private val bigTools = setOf("open_url", "launch_app", "type", "shell", "write_file", "http_fetch")
+
+    private val http by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .build()
+    }
+
+    private fun resolvePath(path: String): File =
+        if (path.startsWith("/")) File(path) else File(ctx.filesDir, path)
 
     val schemaJson: String = """
         [
@@ -45,6 +65,13 @@ class Tools @Inject constructor(
           {"name":"current_app","desc":"Узнать package name приложения на переднем плане","args":[]},
           {"name":"wait_for_text","desc":"Подождать пока на экране появится текст (ms — таймаут)","args":[["text","string"],["ms","number"]]},
           {"name":"read_screen","desc":"Прочитать UI текущего экрана (a11y дерево, кратко)","args":[]},
+          {"name":"shell","desc":"Выполнить sh-команду в песочнице app (ограничено UID приложения). Полезно для ls/cat/echo в filesDir.","args":[["cmd","string"],["ms","number"]]},
+          {"name":"http_fetch","desc":"HTTP-запрос (GET/POST). Возвращает status+тело (≤8k).","args":[["url","string"],["method","string"],["body","string"]]},
+          {"name":"read_file","desc":"Прочитать текст файла. Относительные пути — внутри filesDir приложения.","args":[["path","string"]]},
+          {"name":"write_file","desc":"Записать текст в файл (перезапишет). Относительные пути — внутри filesDir.","args":[["path","string"],["content","string"]]},
+          {"name":"list_files","desc":"Список файлов в директории (относительной к filesDir или абсолютной).","args":[["path","string"]]},
+          {"name":"clipboard_read","desc":"Прочитать системный буфер обмена","args":[]},
+          {"name":"clipboard_write","desc":"Записать текст в системный буфер обмена","args":[["text","string"]]},
           {"name":"wait","desc":"Просто подождать N миллисекунд","args":[["ms","number"]]},
           {"name":"done","desc":"Задача выполнена, передать финальный ответ юзеру","args":[["summary","string"]]}
         ]
@@ -170,8 +197,101 @@ class Tools @Inject constructor(
                 val svc = ClawA11yService.get() ?: return ToolResult(false, "A11y не запущен")
                 ToolResult(svc.openNotifications(), "Шторка уведомлений")
             }
+            "shell" -> execShell(args["cmd"].orEmpty(), args["ms"]?.toLongOrNull() ?: 8000L)
+            "http_fetch" -> httpFetch(
+                args["url"].orEmpty(),
+                (args["method"] ?: "GET").uppercase(),
+                args["body"]
+            )
+            "read_file" -> readFile(args["path"].orEmpty())
+            "write_file" -> writeFile(args["path"].orEmpty(), args["content"].orEmpty())
+            "list_files" -> listFiles(args["path"].orEmpty().ifBlank { "." })
+            "clipboard_read" -> {
+                val cb = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val text = cb.primaryClip?.getItemAt(0)?.text?.toString().orEmpty()
+                ToolResult(true, if (text.isEmpty()) "(буфер пуст)" else text.take(2000))
+            }
+            "clipboard_write" -> {
+                val cb = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val t = args["text"].orEmpty()
+                cb.setPrimaryClip(ClipData.newPlainText("pocketclaw", t))
+                ToolResult(true, "Записано в буфер (${t.length} симв.)")
+            }
             else -> ToolResult(false, "Неизвестный tool: $toolName")
         }
+    }
+
+    private suspend fun execShell(cmd: String, timeoutMs: Long): ToolResult =
+        withContext(Dispatchers.IO) {
+            if (cmd.isBlank()) return@withContext ToolResult(false, "cmd пустой")
+            runCatching {
+                val p = ProcessBuilder("sh", "-c", cmd)
+                    .directory(ctx.filesDir)
+                    .redirectErrorStream(true)
+                    .start()
+                val finished = p.waitFor(timeoutMs.coerceIn(500L, 60000L), TimeUnit.MILLISECONDS)
+                if (!finished) {
+                    p.destroyForcibly()
+                    return@runCatching ToolResult(false, "timeout ${timeoutMs}мс")
+                }
+                val out = p.inputStream.bufferedReader().readText().take(4000)
+                val exit = p.exitValue()
+                ToolResult(exit == 0, "[exit=$exit] cwd=${ctx.filesDir}\n$out".trim())
+            }.getOrElse { ToolResult(false, "Shell error: ${it.message}") }
+        }
+
+    private suspend fun httpFetch(url: String, method: String, body: String?): ToolResult =
+        withContext(Dispatchers.IO) {
+            if (url.isBlank()) return@withContext ToolResult(false, "url пустой")
+            runCatching {
+                val req = Request.Builder().url(url).apply {
+                    when (method) {
+                        "GET", "" -> get()
+                        "POST" -> post((body.orEmpty()).toRequestBody("application/json".toMediaTypeOrNull()))
+                        "DELETE" -> delete()
+                        else -> method(method, body?.toRequestBody("application/json".toMediaTypeOrNull()))
+                    }
+                }.build()
+                http.newCall(req).execute().use { resp ->
+                    val text = resp.body?.string()?.take(8000).orEmpty()
+                    ToolResult(resp.isSuccessful, "[$method ${resp.code}]\n$text")
+                }
+            }.getOrElse { ToolResult(false, "HTTP error: ${it.javaClass.simpleName}: ${it.message}") }
+        }
+
+    private suspend fun readFile(path: String): ToolResult = withContext(Dispatchers.IO) {
+        if (path.isBlank()) return@withContext ToolResult(false, "path пустой")
+        runCatching {
+            val f = resolvePath(path)
+            if (!f.exists()) return@runCatching ToolResult(false, "Нет файла: ${f.absolutePath}")
+            if (!f.canRead()) return@runCatching ToolResult(false, "Нет доступа: ${f.absolutePath}")
+            val text = f.readText().take(8000)
+            ToolResult(true, "[${f.absolutePath}] ${f.length()}b\n$text")
+        }.getOrElse { ToolResult(false, "Ошибка чтения: ${it.message}") }
+    }
+
+    private suspend fun writeFile(path: String, content: String): ToolResult =
+        withContext(Dispatchers.IO) {
+            if (path.isBlank()) return@withContext ToolResult(false, "path пустой")
+            runCatching {
+                val f = resolvePath(path)
+                f.parentFile?.mkdirs()
+                f.writeText(content)
+                ToolResult(true, "Записано ${content.length}b → ${f.absolutePath}")
+            }.getOrElse { ToolResult(false, "Ошибка записи: ${it.message}") }
+        }
+
+    private suspend fun listFiles(path: String): ToolResult = withContext(Dispatchers.IO) {
+        runCatching {
+            val dir = resolvePath(path)
+            if (!dir.exists()) return@runCatching ToolResult(false, "Нет директории: ${dir.absolutePath}")
+            if (!dir.isDirectory) return@runCatching ToolResult(false, "Не директория: ${dir.absolutePath}")
+            val entries = dir.listFiles()?.sortedBy { it.name }?.joinToString("\n") {
+                val kind = if (it.isDirectory) "d" else "-"
+                "$kind ${it.length()}\t${it.name}"
+            } ?: "(пусто)"
+            ToolResult(true, "[${dir.absolutePath}]\n$entries")
+        }.getOrElse { ToolResult(false, "Ошибка: ${it.message}") }
     }
 
     private fun humanize(name: String, args: Map<String, String>): String = when (name) {
@@ -190,6 +310,13 @@ class Tools @Inject constructor(
         "current_app" -> "Текущее приложение"
         "wait_for_text" -> "Ждать «${args["text"]}»"
         "wait" -> "Подождать ${args["ms"] ?: 500}мс"
+        "shell" -> "Shell: ${args["cmd"]?.take(60)}"
+        "http_fetch" -> "${args["method"] ?: "GET"} ${args["url"]?.take(80)}"
+        "read_file" -> "Прочитать ${args["path"]}"
+        "write_file" -> "Записать ${args["path"]} (${args["content"]?.length ?: 0}b)"
+        "list_files" -> "ls ${args["path"]}"
+        "clipboard_read" -> "Прочитать буфер"
+        "clipboard_write" -> "Записать в буфер (${args["text"]?.length ?: 0}b)"
         else -> "$name $args"
     }
 

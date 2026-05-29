@@ -15,8 +15,8 @@ android {
         applicationId = "com.musornibak.pocketclaw"
         minSdk = 26
         targetSdk = 34
-        versionCode = 12
-        versionName = "0.3.0"
+        versionCode = 13
+        versionName = "0.3.1"
     }
 
     buildTypes {

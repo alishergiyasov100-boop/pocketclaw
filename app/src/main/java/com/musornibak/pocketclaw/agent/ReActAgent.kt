@@ -82,7 +82,7 @@ class ReActAgent @Inject constructor(
         """.trimIndent()
         val confirmRule = when (level) {
             ConfirmLevel.None -> "- Подтверждения отключены: действуй уверенно, но осторожно"
-            ConfirmLevel.OnlyBig -> "- Юзер подтверждает только большие действия (open_url, launch_app, type); тапы и скролл идут без спроса. Если отказали — выбери другой путь"
+            ConfirmLevel.OnlyBig -> "- Юзер подтверждает только большие действия (open_url, launch_app, type, shell, write_file, http_fetch); тапы/скролл/файл-чтение/буфер идут без спроса. Если отказали — выбери другой путь"
             ConfirmLevel.EveryAction -> "- Юзер видит и одобряет каждое действие, кроме read_screen/done/wait. Не пытайся обходить confirm — если отказали, выбери другой путь"
         }
         val rules = """
@@ -156,6 +156,13 @@ class ReActAgent @Inject constructor(
         "wait_for_text" -> "Ждать «${args["text"]}»"
         "wait" -> "Ждать ${args["ms"]}мс"
         "read_screen" -> "Прочитать экран"
+        "shell" -> "Shell: ${args["cmd"]?.take(40)}"
+        "http_fetch" -> "${args["method"] ?: "GET"} ${args["url"]?.take(60)}"
+        "read_file" -> "Прочитать ${args["path"]}"
+        "write_file" -> "Записать ${args["path"]}"
+        "list_files" -> "ls ${args["path"]}"
+        "clipboard_read" -> "Буфер →"
+        "clipboard_write" -> "Буфер ←"
         else -> "$name"
     }
 }
