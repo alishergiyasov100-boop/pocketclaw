@@ -34,21 +34,46 @@ class Tools @Inject constructor(
           {"name":"launch_app","desc":"Запустить приложение по package name","args":[["pkg","string"]]},
           {"name":"tap_text","desc":"Тапнуть по элементу с этим текстом или description","args":[["text","string"]]},
           {"name":"tap_xy","desc":"Тапнуть в координаты экрана","args":[["x","number"],["y","number"]]},
+          {"name":"long_press","desc":"Долгий тап (~0.8с) в координаты","args":[["x","number"],["y","number"]]},
           {"name":"type","desc":"Напечатать текст в текущее активное поле ввода","args":[["text","string"]]},
           {"name":"scroll","desc":"Прокрутить экран","args":[["dir","forward|back"]]},
+          {"name":"swipe","desc":"Свайп от (x1,y1) до (x2,y2) в пикселях","args":[["x1","number"],["y1","number"],["x2","number"],["y2","number"]]},
+          {"name":"press_back","desc":"Нажать системную кнопку Назад","args":[]},
+          {"name":"press_home","desc":"Нажать кнопку Домой (свернуть)","args":[]},
+          {"name":"press_recents","desc":"Открыть список недавних приложений","args":[]},
+          {"name":"open_notifications","desc":"Открыть шторку уведомлений","args":[]},
+          {"name":"current_app","desc":"Узнать package name приложения на переднем плане","args":[]},
+          {"name":"wait_for_text","desc":"Подождать пока на экране появится текст (ms — таймаут)","args":[["text","string"],["ms","number"]]},
           {"name":"read_screen","desc":"Прочитать UI текущего экрана (a11y дерево, кратко)","args":[]},
-          {"name":"wait","desc":"Подождать перед следующим шагом","args":[["ms","number"]]},
+          {"name":"wait","desc":"Просто подождать N миллисекунд","args":[["ms","number"]]},
           {"name":"done","desc":"Задача выполнена, передать финальный ответ юзеру","args":[["summary","string"]]}
         ]
     """.trimIndent()
 
     suspend fun execute(toolName: String, args: Map<String, String>): ToolResult {
-        if (toolName == "read_screen") {
-            val svc = ClawA11yService.get() ?: return ToolResult(false, "AccessibilityService не запущен")
-            return ToolResult(true, svc.snapshotScreen())
-        }
-        if (toolName == "done") {
-            return ToolResult(true, args["summary"].orEmpty())
+        when (toolName) {
+            "read_screen" -> {
+                val svc = ClawA11yService.get() ?: return ToolResult(false, "AccessibilityService не запущен")
+                return ToolResult(true, svc.snapshotScreen())
+            }
+            "current_app" -> {
+                val svc = ClawA11yService.get() ?: return ToolResult(false, "A11y не запущен")
+                return ToolResult(true, svc.currentApp())
+            }
+            "wait_for_text" -> {
+                val svc = ClawA11yService.get() ?: return ToolResult(false, "A11y не запущен")
+                val text = args["text"].orEmpty()
+                if (text.isBlank()) return ToolResult(false, "text пустой")
+                val ms = args["ms"]?.toLongOrNull() ?: 5000L
+                val ok = svc.waitForText(text, ms.coerceAtMost(30000))
+                return ToolResult(ok, if (ok) "Текст появился: $text" else "Текст не появился за ${ms}мс")
+            }
+            "wait" -> {
+                val ms = args["ms"]?.toLongOrNull() ?: 500L
+                delay(ms.coerceAtMost(10000))
+                return ToolResult(true, "Подождали ${ms}мс")
+            }
+            "done" -> return ToolResult(true, args["summary"].orEmpty())
         }
 
         val human = humanize(toolName, args)
@@ -112,10 +137,38 @@ class Tools @Inject constructor(
                 val ok = svc.scrollAny(forward)
                 ToolResult(ok, if (ok) "Прокручено" else "Нет скроллируемого элемента")
             }
-            "wait" -> {
-                val ms = args["ms"]?.toLongOrNull() ?: 500L
-                delay(ms.coerceAtMost(5000))
-                ToolResult(true, "Подождали ${ms}мс")
+            "long_press" -> {
+                val svc = ClawA11yService.get() ?: return ToolResult(false, "A11y не запущен")
+                val x = args["x"]?.toFloatOrNull() ?: return ToolResult(false, "x не число")
+                val y = args["y"]?.toFloatOrNull() ?: return ToolResult(false, "y не число")
+                val ok = svc.longPressXy(x, y)
+                ToolResult(ok, if (ok) "Долгий тап в ($x,$y)" else "Жест не прошёл")
+            }
+            "swipe" -> {
+                val svc = ClawA11yService.get() ?: return ToolResult(false, "A11y не запущен")
+                val x1 = args["x1"]?.toFloatOrNull() ?: return ToolResult(false, "x1 не число")
+                val y1 = args["y1"]?.toFloatOrNull() ?: return ToolResult(false, "y1 не число")
+                val x2 = args["x2"]?.toFloatOrNull() ?: return ToolResult(false, "x2 не число")
+                val y2 = args["y2"]?.toFloatOrNull() ?: return ToolResult(false, "y2 не число")
+                val dur = args["ms"]?.toLongOrNull() ?: 300L
+                val ok = svc.swipe(x1, y1, x2, y2, dur.coerceIn(50L, 3000L))
+                ToolResult(ok, if (ok) "Свайп ($x1,$y1)→($x2,$y2)" else "Жест не прошёл")
+            }
+            "press_back" -> {
+                val svc = ClawA11yService.get() ?: return ToolResult(false, "A11y не запущен")
+                ToolResult(svc.pressBack(), "Назад")
+            }
+            "press_home" -> {
+                val svc = ClawA11yService.get() ?: return ToolResult(false, "A11y не запущен")
+                ToolResult(svc.pressHome(), "Домой")
+            }
+            "press_recents" -> {
+                val svc = ClawA11yService.get() ?: return ToolResult(false, "A11y не запущен")
+                ToolResult(svc.pressRecents(), "Недавние приложения")
+            }
+            "open_notifications" -> {
+                val svc = ClawA11yService.get() ?: return ToolResult(false, "A11y не запущен")
+                ToolResult(svc.openNotifications(), "Шторка уведомлений")
             }
             else -> ToolResult(false, "Неизвестный tool: $toolName")
         }
@@ -126,8 +179,16 @@ class Tools @Inject constructor(
         "launch_app" -> "Запустить приложение: ${args["pkg"]}"
         "tap_text" -> "Тап по «${args["text"]}»"
         "tap_xy" -> "Тап в (${args["x"]}, ${args["y"]})"
+        "long_press" -> "Долгий тап в (${args["x"]}, ${args["y"]})"
         "type" -> "Напечатать: «${args["text"]}»"
         "scroll" -> "Прокрутить ${args["dir"] ?: "forward"}"
+        "swipe" -> "Свайп (${args["x1"]},${args["y1"]})→(${args["x2"]},${args["y2"]})"
+        "press_back" -> "Назад"
+        "press_home" -> "Домой"
+        "press_recents" -> "Недавние"
+        "open_notifications" -> "Открыть уведомления"
+        "current_app" -> "Текущее приложение"
+        "wait_for_text" -> "Ждать «${args["text"]}»"
         "wait" -> "Подождать ${args["ms"] ?: 500}мс"
         else -> "$name $args"
     }

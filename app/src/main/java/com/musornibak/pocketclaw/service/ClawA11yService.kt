@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 
 class ClawA11yService : AccessibilityService() {
 
@@ -128,6 +129,33 @@ class ClawA11yService : AccessibilityService() {
             putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
         }
         return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+    }
+
+    fun pressBack(): Boolean = performGlobalAction(GLOBAL_ACTION_BACK)
+    fun pressHome(): Boolean = performGlobalAction(GLOBAL_ACTION_HOME)
+    fun pressRecents(): Boolean = performGlobalAction(GLOBAL_ACTION_RECENTS)
+    fun openNotifications(): Boolean = performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
+
+    fun currentApp(): String = rootInActiveWindow?.packageName?.toString() ?: "(unknown)"
+
+    suspend fun longPressXy(x: Float, y: Float, durationMs: Long = 800): Boolean {
+        val path = Path().apply { moveTo(x, y) }
+        val stroke = GestureDescription.StrokeDescription(path, 0, durationMs)
+        val g = GestureDescription.Builder().addStroke(stroke).build()
+        return dispatchGestureSuspend(g)
+    }
+
+    suspend fun waitForText(text: String, timeoutMs: Long): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            val win = rootInActiveWindow
+            if (win != null) {
+                val found = win.findAccessibilityNodeInfosByText(text)
+                if (!found.isNullOrEmpty()) return true
+            }
+            delay(250)
+        }
+        return false
     }
 
     fun scrollAny(forward: Boolean): Boolean {

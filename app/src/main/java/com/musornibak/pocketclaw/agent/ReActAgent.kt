@@ -24,10 +24,16 @@ class ReActAgent @Inject constructor(
     private val _events = MutableSharedFlow<AgentEvent>(extraBufferCapacity = 64)
     val events: SharedFlow<AgentEvent> = _events.asSharedFlow()
 
-    suspend fun run(userTask: String, settings: ApiSettings, maxSteps: Int = 12) {
-        val sys = systemPrompt(settings.systemPrompt, settings.confirmLevel)
-        val history = mutableListOf(ChatMsg("system", sys))
-        history += warmupShots()
+    suspend fun run(
+        userTask: String,
+        settings: ApiSettings,
+        history: MutableList<ChatMsg>,
+        maxSteps: Int = Int.MAX_VALUE
+    ) {
+        if (history.none { it.role == "system" }) {
+            history += ChatMsg("system", systemPrompt(settings.systemPrompt, settings.confirmLevel))
+            history += warmupShots()
+        }
         history += ChatMsg("user", userTask)
         _events.emit(AgentEvent.Thought(
             "→ ${settings.provider.label} | ${settings.model} | ${settings.baseUrl}"
@@ -67,7 +73,6 @@ class ReActAgent @Inject constructor(
                 "Observation (${if (result.ok) "ok" else "fail"}): ${result.observation.take(2000)}"
             )
         }
-        _events.emit(AgentEvent.Error("Превышен лимит шагов ($maxSteps)"))
     }
 
     private fun systemPrompt(custom: String, level: ConfirmLevel): String {
@@ -139,8 +144,16 @@ class ReActAgent @Inject constructor(
         "launch_app" -> "Запустить ${args["pkg"]}"
         "tap_text" -> "Тап «${args["text"]}»"
         "tap_xy" -> "Тап (${args["x"]},${args["y"]})"
+        "long_press" -> "Долгий тап (${args["x"]},${args["y"]})"
         "type" -> "Печать «${args["text"]}»"
         "scroll" -> "Скролл ${args["dir"] ?: "forward"}"
+        "swipe" -> "Свайп (${args["x1"]},${args["y1"]})→(${args["x2"]},${args["y2"]})"
+        "press_back" -> "Назад"
+        "press_home" -> "Домой"
+        "press_recents" -> "Недавние"
+        "open_notifications" -> "Уведомления"
+        "current_app" -> "Текущее приложение"
+        "wait_for_text" -> "Ждать «${args["text"]}»"
         "wait" -> "Ждать ${args["ms"]}мс"
         "read_screen" -> "Прочитать экран"
         else -> "$name"

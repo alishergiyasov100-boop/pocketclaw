@@ -3,6 +3,7 @@ package com.musornibak.pocketclaw.ui.chat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.musornibak.pocketclaw.agent.AgentEvent
+import com.musornibak.pocketclaw.agent.ChatMsg
 import com.musornibak.pocketclaw.agent.ReActAgent
 import com.musornibak.pocketclaw.data.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,6 +35,7 @@ class ChatViewModel @Inject constructor(
     val running: StateFlow<Boolean> = _running.asStateFlow()
 
     private var job: Job? = null
+    private val history = mutableListOf<ChatMsg>()
 
     init {
         viewModelScope.launch {
@@ -66,7 +68,7 @@ class ChatViewModel @Inject constructor(
                 _running.value = false
                 return@launch
             }
-            agent.run(task, s)
+            agent.run(task, s, history)
         }
     }
 
@@ -79,6 +81,7 @@ class ChatViewModel @Inject constructor(
 
     fun clear() {
         _turns.value = emptyList()
+        history.clear()
     }
 
     private fun append(t: ChatTurn) {

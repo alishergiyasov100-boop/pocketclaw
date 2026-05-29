@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.Send
@@ -95,6 +96,13 @@ fun ChatScreen(
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(Icons.Outlined.Menu, contentDescription = null, tint = cs.onSurface)
+                    }
+                },
+                actions = {
+                    if (turns.isNotEmpty() && !running) {
+                        IconButton(onClick = { vm.clear() }) {
+                            Icon(Icons.Outlined.Add, contentDescription = "Новый чат", tint = cs.onSurface)
+                        }
                     }
                 }
             )
