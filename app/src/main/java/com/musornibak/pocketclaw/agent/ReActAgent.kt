@@ -26,10 +26,9 @@ class ReActAgent @Inject constructor(
 
     suspend fun run(userTask: String, settings: ApiSettings, maxSteps: Int = 12) {
         val sys = systemPrompt(settings.systemPrompt, settings.confirmLevel)
-        val history = mutableListOf(
-            ChatMsg("system", sys),
-            ChatMsg("user", userTask)
-        )
+        val history = mutableListOf(ChatMsg("system", sys))
+        history += warmupShots()
+        history += ChatMsg("user", userTask)
         _events.emit(AgentEvent.Thought(
             "→ ${settings.provider.label} | ${settings.model} | ${settings.baseUrl}"
         ))
@@ -100,6 +99,40 @@ class ReActAgent @Inject constructor(
             appendLine(rules)
         }
     }
+
+    private fun warmupShots(): List<ChatMsg> = listOf(
+        ChatMsg("user", "[пример 1] открой example.com"),
+        ChatMsg(
+            "assistant",
+            "Открою сайт через open_url.\n{\"tool\":\"open_url\",\"args\":{\"url\":\"https://example.com\"}}"
+        ),
+        ChatMsg("user", "Observation (ok): Открыт https://example.com"),
+        ChatMsg(
+            "assistant",
+            "Сайт открыт, задача выполнена.\n{\"tool\":\"done\",\"args\":{\"summary\":\"Открыл example.com\"}}"
+        ),
+        ChatMsg("user", "[пример 2] нажми кнопку «Войти»"),
+        ChatMsg(
+            "assistant",
+            "Сначала прочитаю экран, чтобы убедиться что кнопка видна.\n{\"tool\":\"read_screen\",\"args\":{}}"
+        ),
+        ChatMsg("user", "Observation (ok): Button «Войти» (text), Button «Регистрация» (text)"),
+        ChatMsg(
+            "assistant",
+            "Кнопка есть, тапаю.\n{\"tool\":\"tap_text\",\"args\":{\"text\":\"Войти\"}}"
+        ),
+        ChatMsg("user", "Observation (ok): Тап выполнен"),
+        ChatMsg(
+            "assistant",
+            "Готово.\n{\"tool\":\"done\",\"args\":{\"summary\":\"Нажал «Войти»\"}}"
+        ),
+        ChatMsg(
+            "user",
+            "Хорошо, ты освоил формат. Теперь начнём настоящую задачу. Всегда отвечай одним JSON-блоком " +
+            "{\"tool\":\"…\",\"args\":{…}} в конце каждого сообщения."
+        ),
+        ChatMsg("assistant", "Понял, жду задачу.")
+    )
 
     private fun humanize(name: String, args: Map<String, String>): String = when (name) {
         "open_url" -> "Открыть ${args["url"]}"
