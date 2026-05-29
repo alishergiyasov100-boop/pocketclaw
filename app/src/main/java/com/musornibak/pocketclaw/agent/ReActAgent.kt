@@ -1,6 +1,7 @@
 package com.musornibak.pocketclaw.agent
 
 import com.musornibak.pocketclaw.data.ApiSettings
+import com.musornibak.pocketclaw.data.ConfirmLevel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -24,7 +25,7 @@ class ReActAgent @Inject constructor(
     val events: SharedFlow<AgentEvent> = _events.asSharedFlow()
 
     suspend fun run(userTask: String, settings: ApiSettings, maxSteps: Int = 12) {
-        val sys = systemPrompt(settings.systemPrompt)
+        val sys = systemPrompt(settings.systemPrompt, settings.confirmLevel)
         val history = mutableListOf(
             ChatMsg("system", sys),
             ChatMsg("user", userTask)
@@ -70,11 +71,16 @@ class ReActAgent @Inject constructor(
         _events.emit(AgentEvent.Error("Превышен лимит шагов ($maxSteps)"))
     }
 
-    private fun systemPrompt(custom: String): String {
+    private fun systemPrompt(custom: String, level: ConfirmLevel): String {
         val tools = """
             Доступные tools (вызывай по одному, JSON-объектом в конце сообщения):
             ${this.tools.schemaJson}
         """.trimIndent()
+        val confirmRule = when (level) {
+            ConfirmLevel.None -> "- Подтверждения отключены: действуй уверенно, но осторожно"
+            ConfirmLevel.OnlyBig -> "- Юзер подтверждает только большие действия (open_url, launch_app, type); тапы и скролл идут без спроса. Если отказали — выбери другой путь"
+            ConfirmLevel.EveryAction -> "- Юзер видит и одобряет каждое действие, кроме read_screen/done/wait. Не пытайся обходить confirm — если отказали, выбери другой путь"
+        }
         val rules = """
             Правила:
             - Думай коротко на русском перед каждым tool-вызовом
@@ -83,8 +89,7 @@ class ReActAgent @Inject constructor(
             - После каждого действия читай Observation и решай следующий шаг
             - Если задача выполнена — вызови {"tool":"done","args":{"summary":"…"}}
             - Если не уверен какой элемент тапнуть — сначала read_screen
-            - Юзер видит и одобряет каждое действие, кроме read_screen/done/wait
-            - Не пытайся обходить confirm — если отказали, выбери другой путь
+            $confirmRule
         """.trimIndent()
         return buildString {
             if (custom.isNotBlank()) appendLine(custom).appendLine()

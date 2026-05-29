@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.musornibak.pocketclaw.agent.ChatMsg
 import com.musornibak.pocketclaw.agent.LlmClient
 import com.musornibak.pocketclaw.data.ApiSettings
+import com.musornibak.pocketclaw.data.ConfirmLevel
 import com.musornibak.pocketclaw.data.Provider
 import com.musornibak.pocketclaw.data.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,6 +35,7 @@ class SettingsViewModel @Inject constructor(
     fun setApiKey(v: String) = viewModelScope.launch { repo.setApiKey(v) }
     fun setModel(v: String) = viewModelScope.launch { repo.setModel(v) }
     fun setSystemPrompt(v: String) = viewModelScope.launch { repo.setSystemPrompt(v) }
+    fun setConfirmLevel(v: ConfirmLevel) = viewModelScope.launch { repo.setConfirmLevel(v) }
 
     fun runTest(override: ApiSettings? = null) = viewModelScope.launch {
         _testResult.value = null

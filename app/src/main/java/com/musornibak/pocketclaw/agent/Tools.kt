@@ -3,9 +3,12 @@ package com.musornibak.pocketclaw.agent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.musornibak.pocketclaw.data.ConfirmLevel
+import com.musornibak.pocketclaw.data.SettingsRepository
 import com.musornibak.pocketclaw.service.ClawA11yService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -19,8 +22,11 @@ data class ToolResult(val ok: Boolean, val observation: String)
 @Singleton
 class Tools @Inject constructor(
     @ApplicationContext private val ctx: Context,
-    private val gate: ConfirmGate
+    private val gate: ConfirmGate,
+    private val settings: SettingsRepository
 ) {
+
+    private val bigTools = setOf("open_url", "launch_app", "type")
 
     val schemaJson: String = """
         [
@@ -46,8 +52,16 @@ class Tools @Inject constructor(
         }
 
         val human = humanize(toolName, args)
-        val allowed = gate.ask(toolName, args, human)
-        if (!allowed) return ToolResult(false, "Юзер отказал: $human")
+        val level = settings.flow.first().confirmLevel
+        val needAsk = when (level) {
+            ConfirmLevel.None -> false
+            ConfirmLevel.OnlyBig -> toolName in bigTools
+            ConfirmLevel.EveryAction -> true
+        }
+        if (needAsk) {
+            val allowed = gate.ask(toolName, args, human)
+            if (!allowed) return ToolResult(false, "Юзер отказал: $human")
+        }
 
         return when (toolName) {
             "open_url" -> {

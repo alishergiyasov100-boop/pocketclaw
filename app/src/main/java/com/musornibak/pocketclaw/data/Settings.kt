@@ -23,12 +23,24 @@ enum class Provider(val label: String, val defaultBaseUrl: String, val defaultMo
     }
 }
 
+enum class ConfirmLevel(val label: String) {
+    None("Bypass (без подтверждений)"),
+    OnlyBig("Только большие действия"),
+    EveryAction("Каждое действие");
+
+    companion object {
+        fun fromName(name: String?): ConfirmLevel =
+            entries.firstOrNull { it.name == name } ?: OnlyBig
+    }
+}
+
 data class ApiSettings(
     val provider: Provider,
     val baseUrl: String,
     val apiKey: String,
     val model: String,
-    val systemPrompt: String
+    val systemPrompt: String,
+    val confirmLevel: ConfirmLevel
 )
 
 private val Context.dataStore by preferencesDataStore(name = "pocketclaw_settings")
@@ -43,6 +55,7 @@ class SettingsRepository @Inject constructor(
         val apiKey = stringPreferencesKey("api_key")
         val model = stringPreferencesKey("model")
         val systemPrompt = stringPreferencesKey("system_prompt")
+        val confirmLevel = stringPreferencesKey("confirm_level")
     }
 
     val flow: Flow<ApiSettings> = ctx.dataStore.data.map { p ->
@@ -52,7 +65,8 @@ class SettingsRepository @Inject constructor(
             baseUrl = p[Keys.baseUrl]?.takeIf { it.isNotBlank() } ?: provider.defaultBaseUrl,
             apiKey = p[Keys.apiKey].orEmpty(),
             model = p[Keys.model]?.takeIf { it.isNotBlank() } ?: provider.defaultModel,
-            systemPrompt = p[Keys.systemPrompt].orEmpty()
+            systemPrompt = p[Keys.systemPrompt].orEmpty(),
+            confirmLevel = ConfirmLevel.fromName(p[Keys.confirmLevel])
         )
     }
 
@@ -68,4 +82,5 @@ class SettingsRepository @Inject constructor(
     suspend fun setApiKey(v: String) { ctx.dataStore.edit { it[Keys.apiKey] = v } }
     suspend fun setModel(v: String) { ctx.dataStore.edit { it[Keys.model] = v } }
     suspend fun setSystemPrompt(v: String) { ctx.dataStore.edit { it[Keys.systemPrompt] = v } }
+    suspend fun setConfirmLevel(v: ConfirmLevel) { ctx.dataStore.edit { it[Keys.confirmLevel] = v.name } }
 }

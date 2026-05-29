@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.musornibak.pocketclaw.R
 import com.musornibak.pocketclaw.data.ApiSettings
+import com.musornibak.pocketclaw.data.ConfirmLevel
 import com.musornibak.pocketclaw.data.Provider
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
@@ -189,7 +190,8 @@ fun SettingsScreen(
                                     baseUrl = baseUrl.trim(),
                                     apiKey = apiKey.trim(),
                                     model = model.trim(),
-                                    systemPrompt = systemPrompt
+                                    systemPrompt = systemPrompt,
+                                    confirmLevel = s.confirmLevel
                                 )
                             )
                         },
@@ -197,6 +199,41 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(stringResource(R.string.settings_test))
+                    }
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = cs.surfaceContainer)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        "Подтверждения действий",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = cs.onSurface
+                    )
+                    Text(
+                        "Большие действия: open_url, launch_app, type. Маленькие: тапы и скролл.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = cs.onSurfaceVariant
+                    )
+                    ConfirmLevel.entries.forEach { lvl ->
+                        OutlinedButton(
+                            onClick = { vm.setConfirmLevel(lvl) },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                (if (s.confirmLevel == lvl) "● " else "○ ") + lvl.label,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
             }
