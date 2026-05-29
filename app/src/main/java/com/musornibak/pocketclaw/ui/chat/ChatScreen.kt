@@ -28,6 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -37,7 +38,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -55,18 +55,24 @@ fun ChatScreen(
     val running by vm.running.collectAsState()
     var input by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val cs = MaterialTheme.colorScheme
 
     LaunchedEffect(turns.size) {
         if (turns.isNotEmpty()) listState.animateScrollToItem(turns.size - 1)
     }
 
     Scaffold(
+        containerColor = cs.background,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = cs.background,
+                    titleContentColor = cs.onBackground
+                ),
                 title = { Text(stringResource(R.string.chat_title)) },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Outlined.Menu, contentDescription = null)
+                        Icon(Icons.Outlined.Menu, contentDescription = null, tint = cs.onSurface)
                     }
                 }
             )
@@ -80,15 +86,15 @@ fun ChatScreen(
             if (turns.isEmpty()) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp)
-                        .weight(1f),
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(horizontal = 24.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         stringResource(R.string.chat_empty),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = cs.onSurfaceVariant
                     )
                 }
             } else {
@@ -97,8 +103,8 @@ fun ChatScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .padding(horizontal = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(vertical = 12.dp)
                 ) {
                     items(turns) { t -> TurnRow(t) }
@@ -108,7 +114,7 @@ fun ChatScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp),
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(
@@ -116,12 +122,13 @@ fun ChatScreen(
                     onValueChange = { input = it },
                     placeholder = { Text(stringResource(R.string.chat_input_hint)) },
                     modifier = Modifier.weight(1f),
-                    maxLines = 4
+                    maxLines = 4,
+                    shape = RoundedCornerShape(14.dp)
                 )
                 Spacer(Modifier.width(8.dp))
                 if (running) {
                     IconButton(onClick = { vm.stop() }) {
-                        Icon(Icons.Outlined.Stop, contentDescription = stringResource(R.string.chat_stop))
+                        Icon(Icons.Outlined.Stop, contentDescription = stringResource(R.string.chat_stop), tint = cs.error)
                     }
                 } else {
                     IconButton(onClick = {
@@ -130,7 +137,7 @@ fun ChatScreen(
                             input = ""
                         }
                     }) {
-                        Icon(Icons.Outlined.Send, contentDescription = stringResource(R.string.chat_send))
+                        Icon(Icons.Outlined.Send, contentDescription = stringResource(R.string.chat_send), tint = cs.primary)
                     }
                 }
             }
@@ -145,16 +152,19 @@ private fun TurnRow(t: ChatTurn) {
         TurnKind.User -> Triple("ты", cs.surfaceContainerHigh, cs.onSurface)
         TurnKind.Thought -> Triple("мысль", cs.surfaceContainer, cs.onSurfaceVariant)
         TurnKind.ToolCall -> Triple("→ действие", cs.surfaceContainerHighest, cs.onSurface)
-        TurnKind.Observation -> Triple(if (t.ok) "← результат" else "← неудача",
-            cs.surfaceContainer, if (t.ok) cs.onSurfaceVariant else cs.error)
+        TurnKind.Observation -> Triple(
+            if (t.ok) "← результат" else "← неудача",
+            cs.surfaceContainer,
+            if (t.ok) cs.onSurfaceVariant else cs.error
+        )
         TurnKind.Final -> Triple("готово", cs.surfaceContainerHigh, cs.primary)
         TurnKind.Error -> Triple("ошибка", cs.surfaceContainer, cs.error)
     }
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(bg, RoundedCornerShape(10.dp))
-            .padding(12.dp)
+            .background(bg, RoundedCornerShape(14.dp))
+            .padding(14.dp)
     ) {
         Text(
             label,
@@ -162,7 +172,7 @@ private fun TurnRow(t: ChatTurn) {
             color = cs.onSurfaceVariant,
             fontWeight = FontWeight.SemiBold
         )
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(6.dp))
         Text(
             t.text,
             style = MaterialTheme.typography.bodyMedium,

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material3.Button
@@ -22,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,6 +44,7 @@ import kotlinx.coroutines.delay
 fun A11yScreen(onOpenDrawer: () -> Unit) {
     val ctx = LocalContext.current
     var enabled by remember { mutableStateOf(ClawA11yService.isConnected()) }
+    val cs = MaterialTheme.colorScheme
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -51,12 +54,17 @@ fun A11yScreen(onOpenDrawer: () -> Unit) {
     }
 
     Scaffold(
+        containerColor = cs.background,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = cs.background,
+                    titleContentColor = cs.onBackground
+                ),
                 title = { Text(stringResource(R.string.a11y_title)) },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Outlined.Menu, contentDescription = null)
+                        Icon(Icons.Outlined.Menu, contentDescription = null, tint = cs.onSurface)
                     }
                 }
             )
@@ -66,32 +74,37 @@ fun A11yScreen(onOpenDrawer: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = cs.surfaceContainer)
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Text(
                         if (enabled) stringResource(R.string.a11y_enabled) else stringResource(R.string.a11y_disabled),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        color = if (enabled) cs.primary else cs.error
                     )
                     Text(
                         stringResource(R.string.a11y_explainer),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = cs.onSurfaceVariant
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(4.dp))
                     Button(
                         onClick = {
                             val i = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             ctx.startActivity(i)
                         },
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(stringResource(R.string.a11y_open_settings))

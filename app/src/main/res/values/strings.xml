@@ -7,6 +7,7 @@
     <string name="nav_chat">Чат</string>
     <string name="nav_settings">API</string>
     <string name="nav_a11y">Доступ</string>
+    <string name="drawer_subtitle">Лапа агента</string>
 
     <string name="chat_title">Лапа</string>
     <string name="chat_input_hint">Дай задачу…</string>

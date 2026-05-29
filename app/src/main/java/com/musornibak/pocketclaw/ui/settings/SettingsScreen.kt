@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,22 +55,31 @@ fun SettingsScreen(
 ) {
     val s = vm.settings.collectAsState().value
     val test by vm.testResult.collectAsState()
+    val cs = MaterialTheme.colorScheme
 
     Scaffold(
+        containerColor = cs.background,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = cs.background,
+                    titleContentColor = cs.onBackground
+                ),
                 title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Outlined.Menu, contentDescription = null)
+                        Icon(Icons.Outlined.Menu, contentDescription = null, tint = cs.onSurface)
                     }
                 }
             )
         }
     ) { padding: PaddingValues ->
         if (s == null) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("…", color = cs.onSurfaceVariant)
             }
             return@Scaffold
         }
@@ -80,14 +90,23 @@ fun SettingsScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = cs.surfaceContainer)
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(stringResource(R.string.settings_provider), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.settings_provider),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = cs.onSurface
+                    )
                     ProviderPicker(s.provider) { vm.setProvider(it) }
 
                     OutlinedTextField(
@@ -96,6 +115,7 @@ fun SettingsScreen(
                         label = { Text(stringResource(R.string.settings_base_url)) },
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -104,6 +124,7 @@ fun SettingsScreen(
                         label = { Text(stringResource(R.string.settings_api_key)) },
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -112,6 +133,7 @@ fun SettingsScreen(
                         label = { Text(stringResource(R.string.settings_model)) },
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -120,19 +142,23 @@ fun SettingsScreen(
                         label = { Text(stringResource(R.string.settings_system_prompt)) },
                         minLines = 3,
                         maxLines = 8,
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedButton(onClick = { vm.runTest() }) {
+                        OutlinedButton(
+                            onClick = { vm.runTest() },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
                             Text(stringResource(R.string.settings_test))
                         }
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(12.dp))
                         test?.let { (ok, msg) ->
                             Text(
                                 msg,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                color = if (ok) cs.primary else cs.error
                             )
                         }
                     }
@@ -146,7 +172,11 @@ fun SettingsScreen(
 private fun ProviderPicker(current: Provider, onPick: (Provider) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text(current.label, modifier = Modifier.weight(1f))
             Icon(Icons.Outlined.ExpandMore, contentDescription = null)
         }
