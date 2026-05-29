@@ -41,7 +41,8 @@ data class ApiSettings(
     val model: String,
     val systemPrompt: String,
     val confirmLevel: ConfirmLevel,
-    val toolsPerSecond: Int
+    val toolsPerSecond: Int,
+    val maxHistoryMsgs: Int
 )
 
 private val Context.dataStore by preferencesDataStore(name = "pocketclaw_settings")
@@ -58,6 +59,7 @@ class SettingsRepository @Inject constructor(
         val systemPrompt = stringPreferencesKey("system_prompt")
         val confirmLevel = stringPreferencesKey("confirm_level")
         val toolsPerSecond = stringPreferencesKey("tools_per_second")
+        val maxHistoryMsgs = stringPreferencesKey("max_history_msgs")
     }
 
     val flow: Flow<ApiSettings> = ctx.dataStore.data.map { p ->
@@ -69,7 +71,8 @@ class SettingsRepository @Inject constructor(
             model = p[Keys.model]?.takeIf { it.isNotBlank() } ?: provider.defaultModel,
             systemPrompt = p[Keys.systemPrompt].orEmpty(),
             confirmLevel = ConfirmLevel.fromName(p[Keys.confirmLevel]),
-            toolsPerSecond = p[Keys.toolsPerSecond]?.toIntOrNull() ?: 2
+            toolsPerSecond = p[Keys.toolsPerSecond]?.toIntOrNull() ?: 2,
+            maxHistoryMsgs = p[Keys.maxHistoryMsgs]?.toIntOrNull() ?: 40
         )
     }
 
@@ -87,4 +90,5 @@ class SettingsRepository @Inject constructor(
     suspend fun setSystemPrompt(v: String) { ctx.dataStore.edit { it[Keys.systemPrompt] = v } }
     suspend fun setConfirmLevel(v: ConfirmLevel) { ctx.dataStore.edit { it[Keys.confirmLevel] = v.name } }
     suspend fun setToolsPerSecond(v: Int) { ctx.dataStore.edit { it[Keys.toolsPerSecond] = v.toString() } }
+    suspend fun setMaxHistoryMsgs(v: Int) { ctx.dataStore.edit { it[Keys.maxHistoryMsgs] = v.toString() } }
 }

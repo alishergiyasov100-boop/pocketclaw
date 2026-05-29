@@ -192,7 +192,8 @@ fun SettingsScreen(
                                     model = model.trim(),
                                     systemPrompt = systemPrompt,
                                     confirmLevel = s.confirmLevel,
-                                    toolsPerSecond = s.toolsPerSecond
+                                    toolsPerSecond = s.toolsPerSecond,
+                                    maxHistoryMsgs = s.maxHistoryMsgs
                                 )
                             )
                         },
@@ -277,6 +278,48 @@ fun SettingsScreen(
                         "Текущий: " + if (s.toolsPerSecond == 0) "без лимита" else "${s.toolsPerSecond}/сек",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (s.toolsPerSecond == 0) cs.error else cs.primary
+                    )
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = cs.surfaceContainer)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        "Окно истории",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = cs.onSurface
+                    )
+                    Text(
+                        "Сколько последних сообщений уходит в модель. Меньше — дешевле, но агент быстрее забывает.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = cs.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(20, 40, 80, 160, 0).forEach { n ->
+                            OutlinedButton(
+                                onClick = { vm.setMaxHistoryMsgs(n) },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(if (n == 0) "∞" else "$n")
+                            }
+                        }
+                    }
+                    Text(
+                        "Текущее: " + if (s.maxHistoryMsgs == 0) "без обрезки (дорого)" else "${s.maxHistoryMsgs} сообщений",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (s.maxHistoryMsgs == 0) cs.error else cs.primary
                     )
                 }
             }

@@ -46,6 +46,7 @@ class ReActAgent @Inject constructor(
         var step = 0
         while (step < maxSteps) {
             step++
+            trimHistory(history, settings.maxHistoryMsgs)
             val resp = runCatching { llm.complete(settings, history) }
                 .getOrElse { e ->
                     val cls = e.javaClass.simpleName
@@ -86,6 +87,16 @@ class ReActAgent @Inject constructor(
                 "Observation (${if (result.ok) "ok" else "fail"}): ${result.observation.take(2000)}"
             )
         }
+    }
+
+    private fun trimHistory(history: MutableList<ChatMsg>, maxDynamic: Int) {
+        if (maxDynamic <= 0) return
+        val markerIdx = history.indexOfLast { it.role == "assistant" && it.content == "Понял, жду задачу." }
+        val preambleEnd = if (markerIdx >= 0) markerIdx + 1
+            else history.indexOfFirst { it.role != "system" }.takeIf { it >= 0 } ?: return
+        val dynamicSize = history.size - preambleEnd
+        val excess = dynamicSize - maxDynamic
+        if (excess > 0) repeat(excess) { history.removeAt(preambleEnd) }
     }
 
     private fun systemPrompt(custom: String, level: ConfirmLevel): String {
