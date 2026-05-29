@@ -17,9 +17,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import android.widget.Toast
+import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material.icons.outlined.Stop
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -111,6 +115,8 @@ fun ChatScreen(
                 }
             }
 
+            val clip = LocalClipboardManager.current
+            val ctx = LocalContext.current
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -125,7 +131,17 @@ fun ChatScreen(
                     maxLines = 4,
                     shape = RoundedCornerShape(14.dp)
                 )
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(4.dp))
+                IconButton(onClick = {
+                    val pasted = clip.getText()?.text
+                    if (!pasted.isNullOrEmpty()) {
+                        input = if (input.isEmpty()) pasted else "$input$pasted"
+                    } else {
+                        Toast.makeText(ctx, "Буфер пуст", Toast.LENGTH_SHORT).show()
+                    }
+                }) {
+                    Icon(Icons.Outlined.ContentPaste, contentDescription = "Вставить", tint = cs.onSurfaceVariant)
+                }
                 if (running) {
                     IconButton(onClick = { vm.stop() }) {
                         Icon(Icons.Outlined.Stop, contentDescription = stringResource(R.string.chat_stop), tint = cs.error)

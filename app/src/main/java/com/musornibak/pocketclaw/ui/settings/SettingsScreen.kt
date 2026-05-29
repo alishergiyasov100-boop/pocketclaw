@@ -1,5 +1,6 @@
 package com.musornibak.pocketclaw.ui.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,8 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material3.Card
@@ -39,9 +42,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.musornibak.pocketclaw.R
@@ -109,32 +116,23 @@ fun SettingsScreen(
                     )
                     ProviderPicker(s.provider) { vm.setProvider(it) }
 
-                    OutlinedTextField(
+                    PasteField(
                         value = s.baseUrl,
-                        onValueChange = { vm.setBaseUrl(it) },
-                        label = { Text(stringResource(R.string.settings_base_url)) },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        onChange = { vm.setBaseUrl(it) },
+                        label = stringResource(R.string.settings_base_url),
+                        keyboard = KeyboardType.Uri
                     )
-                    OutlinedTextField(
+                    PasteField(
                         value = s.apiKey,
-                        onValueChange = { vm.setApiKey(it) },
-                        label = { Text(stringResource(R.string.settings_api_key)) },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        onChange = { vm.setApiKey(it) },
+                        label = stringResource(R.string.settings_api_key),
+                        keyboard = KeyboardType.Text
                     )
-                    OutlinedTextField(
+                    PasteField(
                         value = s.model,
-                        onValueChange = { vm.setModel(it) },
-                        label = { Text(stringResource(R.string.settings_model)) },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        onChange = { vm.setModel(it) },
+                        label = stringResource(R.string.settings_model),
+                        keyboard = KeyboardType.Text
                     )
                     OutlinedTextField(
                         value = s.systemPrompt,
@@ -146,24 +144,97 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedButton(
-                            onClick = { vm.runTest() },
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(stringResource(R.string.settings_test))
+                    OutlinedButton(
+                        onClick = { vm.runTest() },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.settings_test))
+                    }
+                }
+            }
+
+            test?.let { (ok, msg) ->
+                val ctx = LocalContext.current
+                val clip = LocalClipboardManager.current
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (ok) cs.surfaceContainer else cs.errorContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                if (ok) "OK" else "Ошибка",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (ok) cs.primary else cs.error,
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedButton(
+                                onClick = {
+                                    clip.setText(androidx.compose.ui.text.AnnotatedString(msg))
+                                    Toast.makeText(ctx, "Скопировано", Toast.LENGTH_SHORT).show()
+                                },
+                                shape = RoundedCornerShape(10.dp)
+                            ) { Text("Копировать") }
                         }
-                        Spacer(Modifier.width(12.dp))
-                        test?.let { (ok, msg) ->
+                        SelectionContainer {
                             Text(
                                 msg,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (ok) cs.primary else cs.error
+                                color = if (ok) cs.onSurface else cs.onErrorContainer
                             )
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PasteField(
+    value: String,
+    onChange: (String) -> Unit,
+    label: String,
+    keyboard: KeyboardType
+) {
+    val clip = LocalClipboardManager.current
+    val ctx = LocalContext.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onChange,
+            label = { Text(label) },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            keyboardOptions = KeyboardOptions(
+                autoCorrect = false,
+                capitalization = KeyboardCapitalization.None,
+                keyboardType = keyboard
+            ),
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(Modifier.width(6.dp))
+        IconButton(onClick = {
+            val pasted = clip.getText()?.text
+            if (!pasted.isNullOrEmpty()) {
+                onChange(pasted)
+            } else {
+                Toast.makeText(ctx, "Буфер пуст", Toast.LENGTH_SHORT).show()
+            }
+        }) {
+            Icon(Icons.Outlined.ContentPaste, contentDescription = "Вставить", tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
