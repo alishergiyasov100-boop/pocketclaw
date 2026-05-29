@@ -1,70 +1,107 @@
 package com.musornibak.pocketclaw.ui.confirm
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.musornibak.pocketclaw.R
 
 @Composable
-fun ConfirmHost(vm: ConfirmViewModel = hiltViewModel()) {
+fun ConfirmBar(vm: ConfirmViewModel = hiltViewModel()) {
     val pending by vm.pending.collectAsState()
-    val p = pending ?: return
-
-    AlertDialog(
-        onDismissRequest = { vm.deny() },
-        title = { Text(stringResource(R.string.confirm_title)) },
-        text = {
-            Column {
-                Text(
-                    p.human,
-                    style = MaterialTheme.typography.titleMedium
+    val cs = MaterialTheme.colorScheme
+    AnimatedVisibility(
+        visible = pending != null,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically()
+    ) {
+        val p = pending ?: return@AnimatedVisibility
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(cs.surfaceContainerHigh, RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(cs.tertiary, CircleShape)
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.size(8.dp))
                 Text(
-                    "tool: ${p.toolName}",
+                    "разрешить действие?",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = cs.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                p.human,
+                style = MaterialTheme.typography.titleMedium,
+                color = cs.onSurface,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (p.args.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    p.toolName + p.args.entries.joinToString(prefix = "  ", separator = "  ") { "${it.key}=${it.value}" },
                     style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = cs.onSurfaceVariant,
+                    fontFamily = FontFamily.Monospace
                 )
-                p.args.forEach { (k, v) ->
-                    Text(
-                        "  $k = $v",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                FilledTonalButton(
+                    onClick = { vm.deny() },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Outlined.Close, contentDescription = null)
+                    Spacer(Modifier.size(6.dp))
+                    Text("Отказать")
                 }
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    stringResource(R.string.confirm_explain),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { vm.allow() }) {
-                Text(stringResource(R.string.confirm_allow))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = { vm.deny() }) {
-                Text(stringResource(R.string.confirm_deny))
+                FilledTonalButton(
+                    onClick = { vm.allow() },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Outlined.Check, contentDescription = null)
+                    Spacer(Modifier.size(6.dp))
+                    Text("Разрешить")
+                }
             }
         }
-    )
+    }
 }

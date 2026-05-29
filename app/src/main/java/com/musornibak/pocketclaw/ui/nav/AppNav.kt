@@ -33,7 +33,6 @@ import androidx.navigation.compose.rememberNavController
 import com.musornibak.pocketclaw.R
 import com.musornibak.pocketclaw.ui.a11y.A11yScreen
 import com.musornibak.pocketclaw.ui.chat.ChatScreen
-import com.musornibak.pocketclaw.ui.confirm.ConfirmHost
 import com.musornibak.pocketclaw.ui.settings.SettingsScreen
 import kotlinx.coroutines.launch
 
@@ -78,7 +77,6 @@ fun AppNav() {
                     A11yScreen(onOpenDrawer = openDrawer)
                 }
             }
-            ConfirmHost()
         }
     }
 }
