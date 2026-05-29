@@ -36,6 +36,7 @@ class SettingsViewModel @Inject constructor(
     fun setModel(v: String) = viewModelScope.launch { repo.setModel(v) }
     fun setSystemPrompt(v: String) = viewModelScope.launch { repo.setSystemPrompt(v) }
     fun setConfirmLevel(v: ConfirmLevel) = viewModelScope.launch { repo.setConfirmLevel(v) }
+    fun setToolsPerSecond(v: Int) = viewModelScope.launch { repo.setToolsPerSecond(v) }
 
     fun runTest(override: ApiSettings? = null) = viewModelScope.launch {
         _testResult.value = null
@@ -43,7 +44,7 @@ class SettingsViewModel @Inject constructor(
         runCatching {
             llm.complete(s, listOf(ChatMsg("user", "ответь одним словом: ping")))
         }.fold(
-            onSuccess = { _testResult.value = true to it.take(200) },
+            onSuccess = { _testResult.value = true to it.content.take(200) },
             onFailure = { e ->
                 val cls = e.javaClass.simpleName
                 val msg = e.message ?: "(нет сообщения)"

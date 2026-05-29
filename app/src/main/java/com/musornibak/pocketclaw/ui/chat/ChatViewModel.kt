@@ -34,6 +34,9 @@ class ChatViewModel @Inject constructor(
     private val _running = MutableStateFlow(false)
     val running: StateFlow<Boolean> = _running.asStateFlow()
 
+    private val _tokens = MutableStateFlow(0 to 0)
+    val tokens: StateFlow<Pair<Int, Int>> = _tokens.asStateFlow()
+
     private var job: Job? = null
     private val history = mutableListOf<ChatMsg>()
 
@@ -51,6 +54,10 @@ class ChatViewModel @Inject constructor(
                     is AgentEvent.Error -> {
                         append(ChatTurn(TurnKind.Error, ev.text, false))
                         _running.value = false
+                    }
+                    is AgentEvent.Usage -> {
+                        val (p, c) = _tokens.value
+                        _tokens.value = (p + ev.promptTokens) to (c + ev.completionTokens)
                     }
                 }
             }
@@ -82,6 +89,7 @@ class ChatViewModel @Inject constructor(
     fun clear() {
         _turns.value = emptyList()
         history.clear()
+        _tokens.value = 0 to 0
     }
 
     private fun append(t: ChatTurn) {

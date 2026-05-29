@@ -10,6 +10,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +26,12 @@ import javax.inject.Singleton
 @Serializable
 data class ChatMsg(val role: String, val content: String)
 
+data class LlmResponse(
+    val content: String,
+    val promptTokens: Int = 0,
+    val completionTokens: Int = 0
+)
+
 @Singleton
 class LlmClient @Inject constructor() {
     private val http: OkHttpClient = OkHttpClient.Builder()
@@ -36,7 +43,7 @@ class LlmClient @Inject constructor() {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val jsonMt = "application/json".toMediaType()
 
-    suspend fun complete(settings: ApiSettings, messages: List<ChatMsg>): String = withContext(Dispatchers.IO) {
+    suspend fun complete(settings: ApiSettings, messages: List<ChatMsg>): LlmResponse = withContext(Dispatchers.IO) {
         if (settings.baseUrl.isBlank()) error("base URL пуст")
         if (settings.model.isBlank()) error("модель не указана")
         val base = settings.baseUrl.trimEnd('/')
@@ -75,7 +82,12 @@ class LlmClient @Inject constructor() {
                 val choices = obj["choices"]?.jsonArray ?: error("Ответ без поля choices: ${text.take(300)}")
                 val content = (choices[0] as JsonObject)["message"]?.jsonObject
                     ?.get("content")?.jsonPrimitive?.content ?: error("Ответ без content: ${text.take(300)}")
-                content
+                val usage = obj["usage"]?.jsonObject
+                LlmResponse(
+                    content = content,
+                    promptTokens = usage?.get("prompt_tokens")?.jsonPrimitive?.intOrNull ?: 0,
+                    completionTokens = usage?.get("completion_tokens")?.jsonPrimitive?.intOrNull ?: 0
+                )
             }
         } catch (e: java.net.UnknownHostException) {
             error("DNS: не могу найти хост ${e.message}")

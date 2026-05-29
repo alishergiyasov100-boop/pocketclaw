@@ -191,7 +191,8 @@ fun SettingsScreen(
                                     apiKey = apiKey.trim(),
                                     model = model.trim(),
                                     systemPrompt = systemPrompt,
-                                    confirmLevel = s.confirmLevel
+                                    confirmLevel = s.confirmLevel,
+                                    toolsPerSecond = s.toolsPerSecond
                                 )
                             )
                         },
@@ -235,6 +236,48 @@ fun SettingsScreen(
                             )
                         }
                     }
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = cs.surfaceContainer)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        "Лимит действий",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = cs.onSurface
+                    )
+                    Text(
+                        "Максимум tool-вызовов в секунду (защита от циклов).",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = cs.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(1, 2, 5, 10, 0).forEach { rate ->
+                            OutlinedButton(
+                                onClick = { vm.setToolsPerSecond(rate) },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(if (rate == 0) "∞" else "$rate")
+                            }
+                        }
+                    }
+                    Text(
+                        "Текущий: " + if (s.toolsPerSecond == 0) "без лимита" else "${s.toolsPerSecond}/сек",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (s.toolsPerSecond == 0) cs.error else cs.primary
+                    )
                 }
             }
 

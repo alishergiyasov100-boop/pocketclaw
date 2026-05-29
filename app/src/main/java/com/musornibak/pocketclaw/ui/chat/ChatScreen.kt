@@ -76,6 +76,7 @@ fun ChatScreen(
 ) {
     val turns by vm.turns.collectAsState()
     val running by vm.running.collectAsState()
+    val tokens by vm.tokens.collectAsState()
     var input by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val cs = MaterialTheme.colorScheme
@@ -92,7 +93,19 @@ fun ChatScreen(
                     containerColor = cs.background,
                     titleContentColor = cs.onBackground
                 ),
-                title = { Text(stringResource(R.string.chat_title)) },
+                title = {
+                    Column {
+                        Text(stringResource(R.string.chat_title))
+                        if (tokens.first > 0 || tokens.second > 0) {
+                            Text(
+                                "↓${tokens.first}  ↑${tokens.second}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = cs.onSurfaceVariant,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onOpenDrawer) {
                         Icon(Icons.Outlined.Menu, contentDescription = null, tint = cs.onSurface)

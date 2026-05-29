@@ -2,6 +2,7 @@ package com.musornibak.pocketclaw.agent
 
 import com.musornibak.pocketclaw.data.ApiSettings
 import com.musornibak.pocketclaw.data.ConfirmLevel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -14,6 +15,7 @@ sealed class AgentEvent {
     data class Observation(val ok: Boolean, val text: String) : AgentEvent()
     data class Final(val text: String) : AgentEvent()
     data class Error(val text: String) : AgentEvent()
+    data class Usage(val promptTokens: Int, val completionTokens: Int) : AgentEvent()
 }
 
 @Singleton
@@ -39,16 +41,22 @@ class ReActAgent @Inject constructor(
             "→ ${settings.provider.label} | ${settings.model} | ${settings.baseUrl}"
         ))
 
+        val minGapMs = if (settings.toolsPerSecond > 0) 1000L / settings.toolsPerSecond else 0L
+        var lastToolMs = 0L
         var step = 0
         while (step < maxSteps) {
             step++
-            val reply = runCatching { llm.complete(settings, history) }
+            val resp = runCatching { llm.complete(settings, history) }
                 .getOrElse { e ->
                     val cls = e.javaClass.simpleName
                     val msg = e.message ?: "(нет сообщения)"
                     _events.emit(AgentEvent.Error("[$cls] $msg"))
                     return
                 }
+            val reply = resp.content
+            if (resp.promptTokens > 0 || resp.completionTokens > 0) {
+                _events.emit(AgentEvent.Usage(resp.promptTokens, resp.completionTokens))
+            }
             history += ChatMsg("assistant", reply)
 
             val thought = reply.substringBefore('{').trim().ifBlank { null }
@@ -64,9 +72,14 @@ class ReActAgent @Inject constructor(
                 _events.emit(AgentEvent.Final(args["summary"].orEmpty().ifBlank { "Готово." }))
                 return
             }
+            if (minGapMs > 0) {
+                val wait = minGapMs - (System.currentTimeMillis() - lastToolMs)
+                if (wait > 0) delay(wait)
+            }
             val human = humanize(name, args)
             _events.emit(AgentEvent.ToolCall(name, args, human))
             val result = tools.execute(name, args)
+            lastToolMs = System.currentTimeMillis()
             _events.emit(AgentEvent.Observation(result.ok, result.observation))
             history += ChatMsg(
                 "user",
