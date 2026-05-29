@@ -9,11 +9,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -35,26 +35,31 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.musornibak.pocketclaw.R
 import com.musornibak.pocketclaw.data.Provider
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.drop
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun SettingsScreen(
     onOpenDrawer: () -> Unit,
@@ -91,6 +96,37 @@ fun SettingsScreen(
             return@Scaffold
         }
 
+        var baseUrl by remember { mutableStateOf(s.baseUrl) }
+        var apiKey by remember { mutableStateOf(s.apiKey) }
+        var model by remember { mutableStateOf(s.model) }
+        var systemPrompt by remember { mutableStateOf(s.systemPrompt) }
+
+        LaunchedEffect(s.provider) {
+            baseUrl = s.baseUrl
+            model = s.model
+        }
+
+        LaunchedEffect(Unit) {
+            snapshotFlow { baseUrl }.drop(1).debounce(400).collect {
+                if (it != s.baseUrl) vm.setBaseUrl(it)
+            }
+        }
+        LaunchedEffect(Unit) {
+            snapshotFlow { apiKey }.drop(1).debounce(400).collect {
+                if (it != s.apiKey) vm.setApiKey(it)
+            }
+        }
+        LaunchedEffect(Unit) {
+            snapshotFlow { model }.drop(1).debounce(400).collect {
+                if (it != s.model) vm.setModel(it)
+            }
+        }
+        LaunchedEffect(Unit) {
+            snapshotFlow { systemPrompt }.drop(1).debounce(400).collect {
+                if (it != s.systemPrompt) vm.setSystemPrompt(it)
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -117,26 +153,26 @@ fun SettingsScreen(
                     ProviderPicker(s.provider) { vm.setProvider(it) }
 
                     PasteField(
-                        value = s.baseUrl,
-                        onChange = { vm.setBaseUrl(it) },
+                        value = baseUrl,
+                        onChange = { baseUrl = it },
                         label = stringResource(R.string.settings_base_url),
                         keyboard = KeyboardType.Uri
                     )
                     PasteField(
-                        value = s.apiKey,
-                        onChange = { vm.setApiKey(it) },
+                        value = apiKey,
+                        onChange = { apiKey = it },
                         label = stringResource(R.string.settings_api_key),
                         keyboard = KeyboardType.Text
                     )
                     PasteField(
-                        value = s.model,
-                        onChange = { vm.setModel(it) },
+                        value = model,
+                        onChange = { model = it },
                         label = stringResource(R.string.settings_model),
                         keyboard = KeyboardType.Text
                     )
                     OutlinedTextField(
-                        value = s.systemPrompt,
-                        onValueChange = { vm.setSystemPrompt(it) },
+                        value = systemPrompt,
+                        onValueChange = { systemPrompt = it },
                         label = { Text(stringResource(R.string.settings_system_prompt)) },
                         minLines = 3,
                         maxLines = 8,
@@ -178,7 +214,7 @@ fun SettingsScreen(
                             )
                             OutlinedButton(
                                 onClick = {
-                                    clip.setText(androidx.compose.ui.text.AnnotatedString(msg))
+                                    clip.setText(AnnotatedString(msg))
                                     Toast.makeText(ctx, "Скопировано", Toast.LENGTH_SHORT).show()
                                 },
                                 shape = RoundedCornerShape(10.dp)
