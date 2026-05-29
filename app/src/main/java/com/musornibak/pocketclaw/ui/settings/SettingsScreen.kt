@@ -1,5 +1,8 @@
 package com.musornibak.pocketclaw.ui.settings
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings as AndroidSettings
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -193,7 +196,8 @@ fun SettingsScreen(
                                     systemPrompt = systemPrompt,
                                     confirmLevel = s.confirmLevel,
                                     toolsPerSecond = s.toolsPerSecond,
-                                    maxHistoryMsgs = s.maxHistoryMsgs
+                                    maxHistoryMsgs = s.maxHistoryMsgs,
+                                    bubbleEnabled = s.bubbleEnabled
                                 )
                             )
                         },
@@ -324,6 +328,11 @@ fun SettingsScreen(
                 }
             }
 
+            BubbleCard(
+                enabled = s.bubbleEnabled,
+                onToggle = { vm.setBubbleEnabled(it) }
+            )
+
             test?.let { (ok, msg) ->
                 val ctx = LocalContext.current
                 val clip = LocalClipboardManager.current
@@ -429,6 +438,70 @@ private fun ProviderPicker(current: Provider, onPick: (Provider) -> Unit) {
                         onPick(p)
                         expanded = false
                     }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BubbleCard(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    val ctx = LocalContext.current
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = cs.surfaceContainer)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                "Плавающее окно",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = cs.onSurface
+            )
+            Text(
+                "При сворачивании приложения появляется чат-бабл поверх других окон. Драг — перенос, тап — раскрыть.",
+                style = MaterialTheme.typography.bodySmall,
+                color = cs.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { onToggle(false) },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) { Text(if (!enabled) "● Выкл" else "○ Выкл") }
+                OutlinedButton(
+                    onClick = { onToggle(true) },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) { Text(if (enabled) "● Вкл" else "○ Вкл") }
+            }
+            if (enabled) {
+                OutlinedButton(
+                    onClick = {
+                        val intent = Intent(
+                            AndroidSettings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:${ctx.packageName}")
+                        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        ctx.startActivity(intent)
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Разрешение «Поверх других окон»") }
+                Text(
+                    "Если разрешение дано — сверни приложение и появится бабл.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = cs.onSurfaceVariant
                 )
             }
         }

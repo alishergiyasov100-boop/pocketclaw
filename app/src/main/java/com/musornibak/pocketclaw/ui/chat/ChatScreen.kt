@@ -66,6 +66,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.musornibak.pocketclaw.R
+import com.musornibak.pocketclaw.agent.ChatTurn
+import com.musornibak.pocketclaw.agent.TurnKind
 import com.musornibak.pocketclaw.ui.confirm.ConfirmBar
 
 @OptIn(ExperimentalMaterial3Api::class)

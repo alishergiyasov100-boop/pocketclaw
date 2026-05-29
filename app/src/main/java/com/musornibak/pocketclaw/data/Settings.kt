@@ -42,7 +42,8 @@ data class ApiSettings(
     val systemPrompt: String,
     val confirmLevel: ConfirmLevel,
     val toolsPerSecond: Int,
-    val maxHistoryMsgs: Int
+    val maxHistoryMsgs: Int,
+    val bubbleEnabled: Boolean
 )
 
 private val Context.dataStore by preferencesDataStore(name = "pocketclaw_settings")
@@ -60,6 +61,7 @@ class SettingsRepository @Inject constructor(
         val confirmLevel = stringPreferencesKey("confirm_level")
         val toolsPerSecond = stringPreferencesKey("tools_per_second")
         val maxHistoryMsgs = stringPreferencesKey("max_history_msgs")
+        val bubbleEnabled = stringPreferencesKey("bubble_enabled")
     }
 
     val flow: Flow<ApiSettings> = ctx.dataStore.data.map { p ->
@@ -72,7 +74,8 @@ class SettingsRepository @Inject constructor(
             systemPrompt = p[Keys.systemPrompt].orEmpty(),
             confirmLevel = ConfirmLevel.fromName(p[Keys.confirmLevel]),
             toolsPerSecond = p[Keys.toolsPerSecond]?.toIntOrNull() ?: 2,
-            maxHistoryMsgs = p[Keys.maxHistoryMsgs]?.toIntOrNull() ?: 40
+            maxHistoryMsgs = p[Keys.maxHistoryMsgs]?.toIntOrNull() ?: 40,
+            bubbleEnabled = p[Keys.bubbleEnabled] == "true"
         )
     }
 
@@ -91,4 +94,5 @@ class SettingsRepository @Inject constructor(
     suspend fun setConfirmLevel(v: ConfirmLevel) { ctx.dataStore.edit { it[Keys.confirmLevel] = v.name } }
     suspend fun setToolsPerSecond(v: Int) { ctx.dataStore.edit { it[Keys.toolsPerSecond] = v.toString() } }
     suspend fun setMaxHistoryMsgs(v: Int) { ctx.dataStore.edit { it[Keys.maxHistoryMsgs] = v.toString() } }
+    suspend fun setBubbleEnabled(v: Boolean) { ctx.dataStore.edit { it[Keys.bubbleEnabled] = v.toString() } }
 }

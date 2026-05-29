@@ -15,8 +15,8 @@ android {
         applicationId = "com.musornibak.pocketclaw"
         minSdk = 26
         targetSdk = 34
-        versionCode = 16
-        versionName = "0.3.4"
+        versionCode = 17
+        versionName = "0.3.5"
     }
 
     buildTypes {
@@ -57,6 +57,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.process)
+    implementation(libs.androidx.lifecycle.service)
+    implementation(libs.androidx.savedstate)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
