@@ -41,8 +41,22 @@ class SettingsViewModel @Inject constructor(
         runCatching {
             llm.complete(s, listOf(ChatMsg("user", "ответь одним словом: ping")))
         }.fold(
-            onSuccess = { _testResult.value = true to it.take(80) },
-            onFailure = { _testResult.value = false to (it.message ?: "error") }
+            onSuccess = { _testResult.value = true to it.take(200) },
+            onFailure = { e ->
+                val cls = e.javaClass.simpleName
+                val msg = e.message ?: "(нет сообщения)"
+                val stack = e.stackTraceToString().lineSequence()
+                    .take(8).joinToString("\n")
+                val full = buildString {
+                    append("URL: ").append(s.baseUrl).append('\n')
+                    append("Model: ").append(s.model).append('\n')
+                    append("Provider: ").append(s.provider.name).append('\n')
+                    append("ApiKey: ").append(if (s.apiKey.isBlank()) "(пусто)" else "***${s.apiKey.takeLast(4)}").append("\n\n")
+                    append("[$cls] ").append(msg).append("\n\n")
+                    append(stack)
+                }
+                _testResult.value = false to full
+            }
         )
     }
 }
