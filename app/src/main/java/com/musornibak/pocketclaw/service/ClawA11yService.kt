@@ -11,6 +11,9 @@ import kotlinx.coroutines.delay
 
 class ClawA11yService : AccessibilityService() {
 
+    private val snapshotBounds = LinkedHashMap<Int, Rect>()
+    private val snapshotScrollables = mutableListOf<Int>()
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         // We don't react to events; we drive actions from the agent.
     }
@@ -27,30 +30,104 @@ class ClawA11yService : AccessibilityService() {
         super.onDestroy()
     }
 
-    fun snapshotScreen(maxNodes: Int = 200): String {
+    fun snapshotScreen(maxNodes: Int = 120): String {
         val win = rootInActiveWindow ?: return "(no active window)"
         val pkg = win.packageName?.toString() ?: "?"
+        val dm = resources.displayMetrics
+        snapshotBounds.clear()
+        snapshotScrollables.clear()
         val sb = StringBuilder()
-        sb.append("app: ").append(pkg).append('\n')
-        var count = 0
-        walk(win, 0) { node, depth ->
-            if (count >= maxNodes) return@walk false
+        sb.append("screen: ").append(dm.widthPixels).append('x').append(dm.heightPixels)
+            .append("  app: ").append(pkg).append('\n')
+        sb.append("--- interactive nodes (tap_node by #i) ---\n")
+        var index = 0
+        walk(win, 0) { node, _ ->
+            if (index >= maxNodes) return@walk false
+            if (!node.isVisibleToUser) return@walk true
             val text = node.text?.toString()?.trim().orEmpty()
             val desc = node.contentDescription?.toString()?.trim().orEmpty()
+            val hint = runCatching { node.hintText?.toString()?.trim().orEmpty() }.getOrNull().orEmpty()
             val cls = node.className?.toString()?.substringAfterLast('.') ?: "?"
-            val clickable = if (node.isClickable) " clickable" else ""
-            val editable = if (node.isEditable) " editable" else ""
-            val label = listOf(text, desc).filter { it.isNotEmpty() }.joinToString(" | ")
-            if (label.isNotEmpty() || node.isClickable || node.isEditable) {
-                repeat(depth) { sb.append("  ") }
-                sb.append(cls)
-                if (label.isNotEmpty()) sb.append(" \"").append(label.take(80)).append('"')
-                sb.append(clickable).append(editable).append('\n')
-                count++
+            val rid = node.viewIdResourceName?.substringAfterLast('/').orEmpty()
+            val interactive = node.isClickable || node.isEditable || node.isLongClickable || node.isCheckable
+            val labeled = text.isNotEmpty() || desc.isNotEmpty() || hint.isNotEmpty()
+            if (!interactive && !labeled && !node.isScrollable) return@walk true
+
+            val rect = Rect()
+            node.getBoundsInScreen(rect)
+            if (rect.isEmpty) return@walk true
+
+            val label = listOfNotNull(
+                text.ifEmpty { null },
+                desc.takeIf { it.isNotEmpty() && it != text },
+                hint.takeIf { it.isNotEmpty() }?.let { "hint=$it" }
+            ).joinToString(" | ")
+
+            sb.append("[#").append(index).append("] ").append(cls)
+            if (label.isNotEmpty()) sb.append(" \"").append(label.take(80)).append('"')
+            sb.append(" @(").append(rect.centerX()).append(',').append(rect.centerY()).append(')')
+            val traits = buildString {
+                if (node.isClickable) append(" tap")
+                if (node.isLongClickable) append(" long")
+                if (node.isEditable) append(" edit")
+                if (node.isCheckable) append(" chk=").append(node.isChecked)
+                if (node.isScrollable) append(" scroll")
+                if (!node.isEnabled) append(" disabled")
+            }
+            if (traits.isNotEmpty()) sb.append(traits)
+            if (rid.isNotEmpty()) sb.append(" id=").append(rid)
+            sb.append('\n')
+
+            snapshotBounds[index] = Rect(rect)
+            if (node.isScrollable) snapshotScrollables.add(index)
+            index++
+            true
+        }
+        if (snapshotScrollables.isNotEmpty()) {
+            sb.append("scrollables: ").append(snapshotScrollables.joinToString(",") { "#$it" }).append('\n')
+        }
+        sb.append("hint: используй tap_node {\"i\":\"<номер>\"} для точного тапа по #i\n")
+        return sb.toString()
+    }
+
+    suspend fun tapNode(index: Int): Boolean {
+        val rect = snapshotBounds[index] ?: return false
+        return tapXy(rect.centerX().toFloat(), rect.centerY().toFloat())
+    }
+
+    suspend fun longPressNode(index: Int): Boolean {
+        val rect = snapshotBounds[index] ?: return false
+        return longPressXy(rect.centerX().toFloat(), rect.centerY().toFloat())
+    }
+
+    fun findClickableByDesc(desc: String): AccessibilityNodeInfo? {
+        val win = rootInActiveWindow ?: return null
+        var found: AccessibilityNodeInfo? = null
+        walk(win, 0) { node, _ ->
+            val d = node.contentDescription?.toString()?.trim().orEmpty()
+            if (d.equals(desc, ignoreCase = true) || d.contains(desc, ignoreCase = true)) {
+                var cur: AccessibilityNodeInfo? = node
+                var hop = 0
+                while (cur != null && hop < 6) {
+                    if (cur.isClickable) { found = cur; return@walk false }
+                    cur = cur.parent
+                    hop++
+                }
+                if (found == null) found = node
+                return@walk false
             }
             true
         }
-        return sb.toString()
+        return found
+    }
+
+    suspend fun tapDesc(desc: String): Boolean {
+        val node = findClickableByDesc(desc) ?: return false
+        if (node.isClickable) return node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+        val rect = Rect()
+        node.getBoundsInScreen(rect)
+        if (rect.isEmpty) return false
+        return tapXy(rect.centerX().toFloat(), rect.centerY().toFloat())
     }
 
     private fun walk(node: AccessibilityNodeInfo?, depth: Int, body: (AccessibilityNodeInfo, Int) -> Boolean) {

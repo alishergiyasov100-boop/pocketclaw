@@ -39,7 +39,8 @@ class Tools @Inject constructor(
     private val bigTools = setOf("open_url", "launch_app", "type", "shell", "write_file", "http_fetch")
 
     val validToolNames: Set<String> = setOf(
-        "open_url", "launch_app", "tap_text", "tap_xy", "long_press", "type",
+        "open_url", "launch_app", "tap_text", "tap_xy", "tap_node", "tap_desc",
+        "long_press", "long_press_node", "type",
         "scroll", "swipe", "press_back", "press_home", "press_recents",
         "open_notifications", "current_app", "wait_for_text", "read_screen",
         "shell", "http_fetch", "read_file", "write_file", "list_files",
@@ -60,9 +61,12 @@ class Tools @Inject constructor(
         [
           {"name":"open_url","desc":"Открыть URL в системном браузере","args":[["url","string"]]},
           {"name":"launch_app","desc":"Запустить приложение по package name","args":[["pkg","string"]]},
-          {"name":"tap_text","desc":"Тапнуть по элементу с этим текстом или description","args":[["text","string"]]},
+          {"name":"tap_text","desc":"Тапнуть по элементу с этим текстом","args":[["text","string"]]},
           {"name":"tap_xy","desc":"Тапнуть в координаты экрана","args":[["x","number"],["y","number"]]},
+          {"name":"tap_node","desc":"Точный тап по индексу #i из последнего read_screen (рекомендуется когда сомневаешься)","args":[["i","number"]]},
+          {"name":"tap_desc","desc":"Тапнуть по элементу с этим content-description (хорошо для иконок без текста)","args":[["desc","string"]]},
           {"name":"long_press","desc":"Долгий тап (~0.8с) в координаты","args":[["x","number"],["y","number"]]},
+          {"name":"long_press_node","desc":"Долгий тап по индексу #i из последнего read_screen","args":[["i","number"]]},
           {"name":"type","desc":"Напечатать текст в текущее активное поле ввода","args":[["text","string"]]},
           {"name":"scroll","desc":"Прокрутить экран","args":[["dir","forward|back"]]},
           {"name":"swipe","desc":"Свайп от (x1,y1) до (x2,y2) в пикселях","args":[["x1","number"],["y1","number"],["x2","number"],["y2","number"]]},
@@ -72,7 +76,7 @@ class Tools @Inject constructor(
           {"name":"open_notifications","desc":"Открыть шторку уведомлений","args":[]},
           {"name":"current_app","desc":"Узнать package name приложения на переднем плане","args":[]},
           {"name":"wait_for_text","desc":"Подождать пока на экране появится текст (ms — таймаут)","args":[["text","string"],["ms","number"]]},
-          {"name":"read_screen","desc":"Прочитать UI текущего экрана (a11y дерево, кратко)","args":[]},
+          {"name":"read_screen","desc":"Прочитать UI: размер экрана + список интерактивных узлов с координатами центра и индексом #i. Используй tap_node по индексу для точного попадания.","args":[]},
           {"name":"shell","desc":"Выполнить sh-команду в песочнице app (ограничено UID приложения). Полезно для ls/cat/echo в filesDir.","args":[["cmd","string"],["ms","number"]]},
           {"name":"http_fetch","desc":"HTTP-запрос (GET/POST). Возвращает status+тело (≤8k).","args":[["url","string"],["method","string"],["body","string"]]},
           {"name":"read_file","desc":"Прочитать текст файла. Относительные пути — внутри filesDir приложения.","args":[["path","string"]]},
@@ -166,6 +170,25 @@ class Tools @Inject constructor(
                 val y = args["y"]?.toFloatOrNull() ?: return ToolResult(false, "y не число")
                 val ok = svc.tapXy(x, y)
                 ToolResult(ok, if (ok) "Тап в ($x,$y)" else "Жест не прошёл")
+            }
+            "tap_node" -> {
+                val svc = ClawA11yService.get() ?: return ToolResult(false, "A11y не запущен")
+                val i = args["i"]?.toIntOrNull() ?: return ToolResult(false, "i не число")
+                val ok = svc.tapNode(i)
+                ToolResult(ok, if (ok) "Тап по #$i" else "Нет узла #$i — сделай read_screen заново")
+            }
+            "tap_desc" -> {
+                val svc = ClawA11yService.get() ?: return ToolResult(false, "A11y не запущен")
+                val desc = args["desc"].orEmpty()
+                if (desc.isBlank()) return ToolResult(false, "desc пустой")
+                val ok = svc.tapDesc(desc)
+                ToolResult(ok, if (ok) "Тап по desc=«$desc»" else "Не нашёл элемент с desc=«$desc»")
+            }
+            "long_press_node" -> {
+                val svc = ClawA11yService.get() ?: return ToolResult(false, "A11y не запущен")
+                val i = args["i"]?.toIntOrNull() ?: return ToolResult(false, "i не число")
+                val ok = svc.longPressNode(i)
+                ToolResult(ok, if (ok) "Долгий тап по #$i" else "Нет узла #$i")
             }
             "type" -> {
                 val svc = ClawA11yService.get() ?: return ToolResult(false, "A11y не запущен")
@@ -313,7 +336,10 @@ class Tools @Inject constructor(
         "launch_app" -> "Запустить приложение: ${args["pkg"]}"
         "tap_text" -> "Тап по «${args["text"]}»"
         "tap_xy" -> "Тап в (${args["x"]}, ${args["y"]})"
+        "tap_node" -> "Тап по #${args["i"]}"
+        "tap_desc" -> "Тап по desc=«${args["desc"]}»"
         "long_press" -> "Долгий тап в (${args["x"]}, ${args["y"]})"
+        "long_press_node" -> "Долгий тап по #${args["i"]}"
         "type" -> "Напечатать: «${args["text"]}»"
         "scroll" -> "Прокрутить ${args["dir"] ?: "forward"}"
         "swipe" -> "Свайп (${args["x1"]},${args["y1"]})→(${args["x2"]},${args["y2"]})"

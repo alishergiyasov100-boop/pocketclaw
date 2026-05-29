@@ -122,7 +122,16 @@ class ReActAgent @Inject constructor(
             - Никаких других имён. Никаких суффиксов/префиксов. Имя — буква в букву как в списке
             - После каждого действия читай Observation и решай следующий шаг
             - Если задача выполнена — вызови {"tool":"done","args":{"summary":"…"}}
-            - Если не уверен какой элемент тапнуть — сначала read_screen
+
+            Как ориентироваться на экране (ВАЖНО):
+            - Перед любым неочевидным тапом — сначала {"tool":"read_screen","args":{}}
+            - Observation покажет интерактивные узлы списком вида:
+              [#0] Button "Войти" @(540,1240) tap id=btn_login
+              [#1] EditText "" hint="email" @(540,820) edit
+            - Для тапа предпочитай tap_node по #i — это попадает точно в центр узла. tap_xy используй ТОЛЬКО если узла нет в списке
+            - Если иконка без текста, но есть desc — используй tap_desc
+            - После прокрутки или открытия нового экрана делай новый read_screen — старые индексы #i ПРОТУХАЮТ
+            - Координаты в @(x,y) — пиксели от верхнего-левого угла. Экран указан в шапке read_screen
             $confirmRule
         """.trimIndent()
         return buildString {
@@ -149,14 +158,22 @@ class ReActAgent @Inject constructor(
         ChatMsg("user", "[пример 2] нажми кнопку «Войти»"),
         ChatMsg(
             "assistant",
-            "Сначала прочитаю экран, чтобы убедиться что кнопка видна.\n{\"tool\":\"read_screen\",\"args\":{}}"
+            "Сначала прочитаю экран, чтобы увидеть индексы узлов.\n{\"tool\":\"read_screen\",\"args\":{}}"
         ),
-        ChatMsg("user", "Observation (ok): Button «Войти» (text), Button «Регистрация» (text)"),
+        ChatMsg(
+            "user",
+            "Observation (ok): screen: 1080x2400  app: com.foo.bar\n" +
+            "--- interactive nodes (tap_node by #i) ---\n" +
+            "[#0] EditText \"\" hint=\"Email\" @(540,820) edit id=email\n" +
+            "[#1] EditText \"\" hint=\"Пароль\" @(540,1000) edit id=password\n" +
+            "[#2] Button \"Войти\" @(540,1240) tap id=btn_login\n" +
+            "[#3] Button \"Регистрация\" @(540,1400) tap"
+        ),
         ChatMsg(
             "assistant",
-            "Кнопка есть, тапаю.\n{\"tool\":\"tap_text\",\"args\":{\"text\":\"Войти\"}}"
+            "Кнопка «Войти» — это #2. Тапаю по индексу для точности.\n{\"tool\":\"tap_node\",\"args\":{\"i\":\"2\"}}"
         ),
-        ChatMsg("user", "Observation (ok): Тап выполнен"),
+        ChatMsg("user", "Observation (ok): Тап по #2"),
         ChatMsg(
             "assistant",
             "Готово.\n{\"tool\":\"done\",\"args\":{\"summary\":\"Нажал «Войти»\"}}"
@@ -174,7 +191,10 @@ class ReActAgent @Inject constructor(
         "launch_app" -> "Запустить ${args["pkg"]}"
         "tap_text" -> "Тап «${args["text"]}»"
         "tap_xy" -> "Тап (${args["x"]},${args["y"]})"
+        "tap_node" -> "Тап #${args["i"]}"
+        "tap_desc" -> "Тап desc=«${args["desc"]}»"
         "long_press" -> "Долгий тап (${args["x"]},${args["y"]})"
+        "long_press_node" -> "Долгий тап #${args["i"]}"
         "type" -> "Печать «${args["text"]}»"
         "scroll" -> "Скролл ${args["dir"] ?: "forward"}"
         "swipe" -> "Свайп (${args["x1"]},${args["y1"]})→(${args["x2"]},${args["y2"]})"
