@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-data class ToolResult(val ok: Boolean, val observation: String)
+data class ToolResult(val ok: Boolean, val observation: String, val imageB64: String? = null)
 
 @Singleton
 class Tools @Inject constructor(
@@ -99,7 +99,11 @@ class Tools @Inject constructor(
         when (toolName) {
             "read_screen" -> {
                 val svc = ClawA11yService.get() ?: return ToolResult(false, "AccessibilityService не запущен")
-                return ToolResult(true, svc.snapshotScreen())
+                val text = svc.snapshotScreen()
+                val s = settings.flow.first()
+                val img = if (s.visionMode) svc.takeScreenshotB64() else null
+                val suffix = if (img != null) "\n[vision: скриншот прикреплён]" else ""
+                return ToolResult(true, text + suffix, imageB64 = img)
             }
             "current_app" -> {
                 val svc = ClawA11yService.get() ?: return ToolResult(false, "A11y не запущен")

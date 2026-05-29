@@ -39,6 +39,7 @@ class SettingsViewModel @Inject constructor(
     fun setToolsPerSecond(v: Int) = viewModelScope.launch { repo.setToolsPerSecond(v) }
     fun setMaxHistoryMsgs(v: Int) = viewModelScope.launch { repo.setMaxHistoryMsgs(v) }
     fun setBubbleEnabled(v: Boolean) = viewModelScope.launch { repo.setBubbleEnabled(v) }
+    fun setVisionMode(v: Boolean) = viewModelScope.launch { repo.setVisionMode(v) }
 
     fun runTest(override: ApiSettings? = null) = viewModelScope.launch {
         _testResult.value = null

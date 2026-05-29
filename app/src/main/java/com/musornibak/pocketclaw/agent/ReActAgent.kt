@@ -33,7 +33,7 @@ class ReActAgent @Inject constructor(
         maxSteps: Int = Int.MAX_VALUE
     ) {
         if (history.none { it.role == "system" }) {
-            history += ChatMsg("system", systemPrompt(settings.systemPrompt, settings.confirmLevel))
+            history += ChatMsg("system", systemPrompt(settings.systemPrompt, settings.confirmLevel, settings.visionMode))
             history += warmupShots()
         }
         history += ChatMsg("user", userTask)
@@ -84,7 +84,8 @@ class ReActAgent @Inject constructor(
             _events.emit(AgentEvent.Observation(result.ok, result.observation))
             history += ChatMsg(
                 "user",
-                "Observation (${if (result.ok) "ok" else "fail"}): ${result.observation.take(2000)}"
+                "Observation (${if (result.ok) "ok" else "fail"}): ${result.observation.take(2000)}",
+                imageB64 = result.imageB64
             )
         }
     }
@@ -99,7 +100,7 @@ class ReActAgent @Inject constructor(
         if (excess > 0) repeat(excess) { history.removeAt(preambleEnd) }
     }
 
-    private fun systemPrompt(custom: String, level: ConfirmLevel): String {
+    private fun systemPrompt(custom: String, level: ConfirmLevel, visionMode: Boolean): String {
         val whitelist = tools.validToolNames.joinToString(", ")
         val toolsBlock = """
             === БЕЛЫЙ СПИСОК TOOLS (других НЕТ, вызов любого другого ОТКЛОНЯЕТСЯ) ===
@@ -132,7 +133,7 @@ class ReActAgent @Inject constructor(
             - Если иконка без текста, но есть desc — используй tap_desc
             - После прокрутки или открытия нового экрана делай новый read_screen — старые индексы #i ПРОТУХАЮТ
             - Координаты в @(x,y) — пиксели от верхнего-левого угла. Экран указан в шапке read_screen
-            $confirmRule
+            ${if (visionMode) "- VISION ВКЛЮЧЁН: к Observation от read_screen прикреплён скриншот. СМОТРИ на картинку — это твои глаза. Сверяй индексы #i с тем, что реально видно. Картинку получает только последний read_screen.\n            " else ""}$confirmRule
         """.trimIndent()
         return buildString {
             if (custom.isNotBlank()) appendLine(custom).appendLine()

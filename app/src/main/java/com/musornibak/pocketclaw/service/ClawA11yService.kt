@@ -2,12 +2,19 @@ package com.musornibak.pocketclaw.service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
+import android.os.Build
+import android.util.Base64
+import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
+import java.io.ByteArrayOutputStream
+import kotlin.coroutines.resume
 
 class ClawA11yService : AccessibilityService() {
 
@@ -119,6 +126,39 @@ class ClawA11yService : AccessibilityService() {
             true
         }
         return found
+    }
+
+    suspend fun takeScreenshotB64(maxWidthPx: Int = 720, jpegQuality: Int = 55): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        return suspendCancellableCoroutine { cont ->
+            runCatching {
+                takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+                    override fun onSuccess(result: ScreenshotResult) {
+                        val out = runCatching {
+                            val hw = Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
+                                ?: return@runCatching null
+                            val soft = hw.copy(Bitmap.Config.ARGB_8888, false)
+                            hw.recycle()
+                            val ratio = maxWidthPx.toFloat() / soft.width
+                            val w = if (soft.width > maxWidthPx) maxWidthPx else soft.width
+                            val h = if (soft.width > maxWidthPx) (soft.height * ratio).toInt() else soft.height
+                            val scaled = if (w != soft.width) Bitmap.createScaledBitmap(soft, w, h, true) else soft
+                            val baos = ByteArrayOutputStream()
+                            scaled.compress(Bitmap.CompressFormat.JPEG, jpegQuality, baos)
+                            if (scaled !== soft) soft.recycle()
+                            scaled.recycle()
+                            result.hardwareBuffer.close()
+                            Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
+                        }.getOrNull()
+                        cont.resume(out)
+                    }
+
+                    override fun onFailure(errorCode: Int) {
+                        cont.resume(null)
+                    }
+                })
+            }.onFailure { cont.resume(null) }
+        }
     }
 
     suspend fun tapDesc(desc: String): Boolean {

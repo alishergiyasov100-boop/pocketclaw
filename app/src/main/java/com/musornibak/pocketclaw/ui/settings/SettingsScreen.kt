@@ -197,7 +197,8 @@ fun SettingsScreen(
                                     confirmLevel = s.confirmLevel,
                                     toolsPerSecond = s.toolsPerSecond,
                                     maxHistoryMsgs = s.maxHistoryMsgs,
-                                    bubbleEnabled = s.bubbleEnabled
+                                    bubbleEnabled = s.bubbleEnabled,
+                                    visionMode = s.visionMode
                                 )
                             )
                         },
@@ -331,6 +332,11 @@ fun SettingsScreen(
             BubbleCard(
                 enabled = s.bubbleEnabled,
                 onToggle = { vm.setBubbleEnabled(it) }
+            )
+
+            VisionCard(
+                enabled = s.visionMode,
+                onToggle = { vm.setVisionMode(it) }
             )
 
             test?.let { (ok, msg) ->
@@ -502,6 +508,59 @@ private fun BubbleCard(
                     "Если разрешение дано — сверни приложение и появится бабл.",
                     style = MaterialTheme.typography.labelSmall,
                     color = cs.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VisionCard(
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    val cs = MaterialTheme.colorScheme
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = cs.surfaceContainer)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                "Vision (графическое зрение)",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = cs.onSurface
+            )
+            Text(
+                "К каждому read_screen цепляется JPEG-скриншот (720px). Модель ВИДИТ экран как картинку. " +
+                "Требуется vision-модель: gpt-4o, llama-3.2-90b-vision, qwen2-vl и т.п. Ест +1500–2000 токенов на снимок.",
+                style = MaterialTheme.typography.bodySmall,
+                color = cs.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { onToggle(false) },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) { Text(if (!enabled) "● Текст" else "○ Текст") }
+                OutlinedButton(
+                    onClick = { onToggle(true) },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) { Text(if (enabled) "● Vision" else "○ Vision") }
+            }
+            if (enabled) {
+                Text(
+                    "Включено. Если модель не поддерживает картинки — получишь HTTP-ошибку.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = cs.primary
                 )
             }
         }

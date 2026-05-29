@@ -13,6 +13,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -24,7 +25,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Serializable
-data class ChatMsg(val role: String, val content: String)
+data class ChatMsg(
+    val role: String,
+    val content: String,
+    val imageB64: String? = null
+)
 
 data class LlmResponse(
     val content: String,
@@ -48,15 +53,31 @@ class LlmClient @Inject constructor() {
         if (settings.model.isBlank()) error("модель не указана")
         val base = settings.baseUrl.trimEnd('/')
         val url = if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
+        val lastImageIdx = messages.indexOfLast { it.imageB64 != null }
         val body = buildJsonObject {
             put("model", settings.model)
             put("temperature", 0.2)
             put("stream", false)
             putJsonArray("messages") {
-                for (m in messages) {
+                for ((i, m) in messages.withIndex()) {
                     add(buildJsonObject {
                         put("role", m.role)
-                        put("content", m.content)
+                        if (m.imageB64 != null && i == lastImageIdx) {
+                            putJsonArray("content") {
+                                add(buildJsonObject {
+                                    put("type", "text")
+                                    put("text", m.content)
+                                })
+                                add(buildJsonObject {
+                                    put("type", "image_url")
+                                    putJsonObject("image_url") {
+                                        put("url", "data:image/jpeg;base64,${m.imageB64}")
+                                    }
+                                })
+                            }
+                        } else {
+                            put("content", m.content)
+                        }
                     })
                 }
             }
