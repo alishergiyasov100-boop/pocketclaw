@@ -12,6 +12,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -34,7 +36,7 @@ class LlmClient @Inject constructor() {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     private val jsonMt = "application/json".toMediaType()
 
-    suspend fun complete(settings: ApiSettings, messages: List<ChatMsg>): String {
+    suspend fun complete(settings: ApiSettings, messages: List<ChatMsg>): String = withContext(Dispatchers.IO) {
         if (settings.baseUrl.isBlank()) error("base URL пуст")
         if (settings.model.isBlank()) error("модель не указана")
         val base = settings.baseUrl.trimEnd('/')
@@ -73,7 +75,7 @@ class LlmClient @Inject constructor() {
                 val choices = obj["choices"]?.jsonArray ?: error("Ответ без поля choices: ${text.take(300)}")
                 val content = (choices[0] as JsonObject)["message"]?.jsonObject
                     ?.get("content")?.jsonPrimitive?.content ?: error("Ответ без content: ${text.take(300)}")
-                return content
+                content
             }
         } catch (e: java.net.UnknownHostException) {
             error("DNS: не могу найти хост ${e.message}")
