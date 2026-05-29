@@ -35,8 +35,10 @@ class LlmClient @Inject constructor() {
     private val jsonMt = "application/json".toMediaType()
 
     suspend fun complete(settings: ApiSettings, messages: List<ChatMsg>): String {
+        if (settings.baseUrl.isBlank()) error("base URL пуст")
+        if (settings.model.isBlank()) error("модель не указана")
         val base = settings.baseUrl.trimEnd('/')
-        val url = "$base/chat/completions"
+        val url = if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
         val body = buildJsonObject {
             put("model", settings.model)
             put("temperature", 0.2)
@@ -62,15 +64,25 @@ class LlmClient @Inject constructor() {
             }
             .build()
 
-        http.newCall(req).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) error("HTTP ${resp.code}: ${text.take(300)}")
-            val obj = runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull()
-                ?: error("Bad JSON: ${text.take(200)}")
-            val choices = obj["choices"]?.jsonArray ?: error("no choices")
-            val content = (choices[0] as JsonObject)["message"]?.jsonObject
-                ?.get("content")?.jsonPrimitive?.content ?: error("no content")
-            return content
+        try {
+            http.newCall(req).execute().use { resp ->
+                val text = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) error("HTTP ${resp.code} на $url\n${text.take(500)}")
+                val obj = runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull()
+                    ?: error("Битый JSON от $url: ${text.take(300)}")
+                val choices = obj["choices"]?.jsonArray ?: error("Ответ без поля choices: ${text.take(300)}")
+                val content = (choices[0] as JsonObject)["message"]?.jsonObject
+                    ?.get("content")?.jsonPrimitive?.content ?: error("Ответ без content: ${text.take(300)}")
+                return content
+            }
+        } catch (e: java.net.UnknownHostException) {
+            error("DNS: не могу найти хост ${e.message}")
+        } catch (e: java.net.ConnectException) {
+            error("Сеть: не могу подключиться — ${e.message}")
+        } catch (e: javax.net.ssl.SSLException) {
+            error("SSL: ${e.message}")
+        } catch (e: java.io.IOException) {
+            error("IO: ${e.message}")
         }
     }
 }
