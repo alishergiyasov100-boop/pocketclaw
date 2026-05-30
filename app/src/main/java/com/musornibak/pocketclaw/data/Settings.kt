@@ -78,7 +78,7 @@ class SettingsRepository @Inject constructor(
             toolsPerSecond = p[Keys.toolsPerSecond]?.toIntOrNull() ?: 2,
             maxHistoryMsgs = p[Keys.maxHistoryMsgs]?.toIntOrNull() ?: 40,
             bubbleEnabled = p[Keys.bubbleEnabled] == "true",
-            visionMode = p[Keys.visionMode] == "true"
+            visionMode = p[Keys.visionMode]?.let { it == "true" } ?: true
         )
     }
 
